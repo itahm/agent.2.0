@@ -32,7 +32,7 @@ import com.itahm.table.Profile;
 import com.itahm.table.Table;
 import com.itahm.enterprise.Enterprise;
 
-public class Agent implements ITAhMAgent {
+public class Agent implements ITAhMAgent, Runnable {
 
 	public final static String VERSION = "2.0.3.0";
 	public final static String API_KEY = "AIzaSyBg6u1cj9pPfggp-rzQwvdsTGKPgna0RrA";
@@ -51,6 +51,7 @@ public class Agent implements ITAhMAgent {
 	public static Enterprise enterprise = Enterprise.getInstance();
 	private static File root;
 	private boolean isClosed = true;
+	private final Thread diskMonitor = new Thread(this);
 	
 	public Agent() {
 		System.out.format("ITAhM Agent version %s ready.\n", VERSION);
@@ -96,6 +97,8 @@ public class Agent implements ITAhMAgent {
 			catch (JSONException jsone) {
 				throw new IOException("invalid json configuration.");
 			}
+			
+			this.diskMonitor.start();
 			
 			System.out.println("ITAhM agent up.");
 			
@@ -204,8 +207,7 @@ public class Agent implements ITAhMAgent {
 				.put("version", VERSION).toString())
 					.setResponseHeader("Set-Cookie", String.format("SESSION=%s; HttpOnly", session.getCookie()));
 		}
-		
-		if ("signout".equals(cmd)) {
+		else if ("signout".equals(cmd)) {
 			if (session != null) {
 				session.close();
 			}
@@ -248,6 +250,15 @@ public class Agent implements ITAhMAgent {
 		
 		this.isClosed = true;
 		
+		this.diskMonitor.interrupt();
+		
+		try {
+			this.diskMonitor.join();
+		}
+		catch (InterruptedException ie) {
+			ie.printStackTrace();
+		}
+		System.out.println("================================");
 		if (snmp != null) {
 			snmp.close();
 		}
@@ -277,6 +288,35 @@ public class Agent implements ITAhMAgent {
 	public void set(Object value) {
 		// TODO Auto-generated method stub
 		
+	}
+
+	private final static long MAX = 100;
+	private final static long INTERVAL = 10000;
+	private final static long CRITICAL = 10;
+	
+	@Override
+	public void run() {
+		Long lastFreeSpace = null;
+		long freeSpace;
+		
+		while (!Thread.interrupted()) {
+			freeSpace = MAX * root.getUsableSpace() / root.getTotalSpace();
+			
+			if ((freeSpace < lastFreeSpace || lastFreeSpace == null) && freeSpace < CRITICAL) {
+				//Agent.log.write("ITAhM", String.format("저장 여유공간 %d%%", freeSpace), "system", false, true);
+				System.out.println(String.format("저장 여유공간 %d%%", freeSpace));
+			}
+			
+			lastFreeSpace = freeSpace;
+			
+			System.out.println(freeSpace);
+			
+			try {
+				Thread.sleep(INTERVAL);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
 	}
 
 }
