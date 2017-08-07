@@ -70,14 +70,6 @@ public class Agent implements ITAhMAgent, Runnable {
 		try {
 			config = new Config(dataRoot).getJSONObject();
 			
-			if (config.has("clean")) {
-				int clean = config.getInt("clean");
-				
-				if (clean > 0) {
-					snmp.clean(clean);
-				}
-			}
-			
 			if (config.has("gcm")) {
 				if (!config.isNull("gcm")) {
 					gcmm = new GCMManager(API_KEY, config.getString("gcm"));
@@ -101,6 +93,14 @@ public class Agent implements ITAhMAgent, Runnable {
 			log = new Log(dataRoot);
 			snmp = new SNMPAgent(dataRoot);
 			icmp = new ICMPAgent();
+			
+			if (config.has("clean")) {
+				int clean = config.getInt("clean");
+				
+				if (clean > 0) {
+					snmp.clean(clean);
+				}
+			}
 			
 			this.diskMonitor.start();
 			
