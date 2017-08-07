@@ -68,7 +68,7 @@ public class Agent implements ITAhMAgent, Runnable {
 		this.isClosed = false;
 		
 		try {
-			config = new Config(dataRoot).getJSONObject();
+			config = tableMap.put(Table.CONFIG, new Config(dataRoot)).getJSONObject();
 			
 			tableMap.put(Table.ACCOUNT, new Account(dataRoot));
 			tableMap.put(Table.PROFILE, new Profile(dataRoot));
