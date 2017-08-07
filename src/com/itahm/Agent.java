@@ -307,13 +307,10 @@ public class Agent implements ITAhMAgent, Runnable {
 			freeSpace = MAX * root.getUsableSpace() / root.getTotalSpace();
 			
 			if (freeSpace < lastFreeSpace && freeSpace < CRITICAL) {
-				//Agent.log.write("ITAhM", String.format("저장 여유공간 %d%%", freeSpace), "system", false, true);
-				System.out.println(String.format("저장 여유공간 %d%%", freeSpace));
+				Agent.log.write("ITAhM", String.format("저장 여유공간 %d%%", freeSpace), "system", false, true);
 			}
 			
 			lastFreeSpace = freeSpace;
-			
-			System.out.println(freeSpace);
 			
 			try {
 				Thread.sleep(INTERVAL);
