@@ -68,8 +68,9 @@ public class Agent implements ITAhMAgent, Runnable {
 		this.isClosed = false;
 		
 		try {
-			config = tableMap.put(Table.CONFIG, new Config(dataRoot)).getJSONObject();
+			Table configTable = new Config(dataRoot);
 			
+			tableMap.put(Table.CONFIG, configTable);
 			tableMap.put(Table.ACCOUNT, new Account(dataRoot));
 			tableMap.put(Table.PROFILE, new Profile(dataRoot));
 			tableMap.put(Table.DEVICE, new Device(dataRoot));
@@ -79,6 +80,8 @@ public class Agent implements ITAhMAgent, Runnable {
 			tableMap.put(Table.CRITICAL, new Critical(dataRoot));
 			tableMap.put(Table.GCM, new GCM(dataRoot));
 			tableMap.put(Table.SMS, new Table(dataRoot, Table.SMS));
+			
+			config = configTable.getJSONObject();
 			
 			if (config.has("gcm")) {
 				if (!config.isNull("gcm")) {

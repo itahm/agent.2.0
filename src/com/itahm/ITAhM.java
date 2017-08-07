@@ -218,7 +218,7 @@ public class ITAhM extends Listener implements Closeable {
 			Runtime.getRuntime().addShutdownHook(
 				new Thread() {
 					public void run() {
-						try {System.out.println("!!!!");
+						try {
 							itahm.close();
 						} catch (IOException ioe) {
 							ioe.printStackTrace();
