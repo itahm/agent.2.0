@@ -49,6 +49,7 @@ public class Agent implements ITAhMAgent, Runnable {
 	public static SNMPAgent snmp;
 	public static ICMPAgent icmp;
 	public static Enterprise enterprise = Enterprise.getInstance();
+	public static JSONObject config;
 	private static File root;
 	private boolean isClosed = true;
 	private final Thread diskMonitor = new Thread(this);
@@ -67,12 +68,31 @@ public class Agent implements ITAhMAgent, Runnable {
 		this.isClosed = false;
 		
 		try {
+			config = new Config(dataRoot).getJSONObject();
+			
+			if (config.has("clean")) {
+				int clean = config.getInt("clean");
+				
+				if (clean > 0) {
+					snmp.clean(clean);
+				}
+			}
+			
+			if (config.has("gcm")) {
+				if (!config.isNull("gcm")) {
+					gcmm = new GCMManager(API_KEY, config.getString("gcm"));
+				}
+			}
+			
+			if (!config.has("interval")) {
+				config.put("interval", 1);
+			}
+			
 			tableMap.put(Table.ACCOUNT, new Account(dataRoot));
 			tableMap.put(Table.PROFILE, new Profile(dataRoot));
 			tableMap.put(Table.DEVICE, new Device(dataRoot));
 			tableMap.put(Table.POSITION, new Position(dataRoot));
 			tableMap.put(Table.MONITOR, new Monitor(dataRoot));
-			tableMap.put(Table.CONFIG, new Config(dataRoot));
 			tableMap.put(Table.ICON, new Table(dataRoot, Table.ICON));
 			tableMap.put(Table.CRITICAL, new Critical(dataRoot));
 			tableMap.put(Table.GCM, new GCM(dataRoot));
@@ -81,22 +101,6 @@ public class Agent implements ITAhMAgent, Runnable {
 			log = new Log(dataRoot);
 			snmp = new SNMPAgent(dataRoot);
 			icmp = new ICMPAgent();
-			
-			try {
-				JSONObject config = getTable(Table.CONFIG).getJSONObject();
-				int clean = config.getInt(com.itahm.command.Config.Key.CLEAN.toString().toLowerCase());
-				
-				if (clean > 0) {
-					snmp.clean(clean);
-				}
-				
-				if (!config.isNull(com.itahm.command.Config.Key.GCM.toString().toLowerCase())) {
-					gcmm = new GCMManager(API_KEY, config.getString(com.itahm.command.Config.Key.GCM.toString().toLowerCase()));
-				}
-			}
-			catch (JSONException jsone) {
-				throw new IOException("invalid json configuration.");
-			}
 			
 			this.diskMonitor.start();
 			
@@ -258,7 +262,7 @@ public class Agent implements ITAhMAgent, Runnable {
 		catch (InterruptedException ie) {
 			ie.printStackTrace();
 		}
-		System.out.println("================================");
+		
 		if (snmp != null) {
 			snmp.close();
 		}
@@ -296,13 +300,13 @@ public class Agent implements ITAhMAgent, Runnable {
 	
 	@Override
 	public void run() {
-		Long lastFreeSpace = null;
+		long lastFreeSpace = MAX;
 		long freeSpace;
 		
 		while (!Thread.interrupted()) {
 			freeSpace = MAX * root.getUsableSpace() / root.getTotalSpace();
 			
-			if ((freeSpace < lastFreeSpace || lastFreeSpace == null) && freeSpace < CRITICAL) {
+			if (freeSpace < lastFreeSpace && freeSpace < CRITICAL) {
 				//Agent.log.write("ITAhM", String.format("저장 여유공간 %d%%", freeSpace), "system", false, true);
 				System.out.println(String.format("저장 여유공간 %d%%", freeSpace));
 			}

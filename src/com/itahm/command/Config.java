@@ -18,38 +18,40 @@ public class Config implements Command {
 		DASHBOARD,
 		DISPLAY,
 		GCM,
-		SMS
+		SMS,
+		INTERVAL
 	}
 	
 	@Override
 	public Response execute(Request request, JSONObject data) throws IOException {
 		try {
 			Table table = Agent.getTable(Table.CONFIG);
+			JSONObject config = table.getJSONObject();
 			
 			switch(Key.valueOf(data.getString("key").toUpperCase())) {
 			case CLEAN:
 				int clean = data.getInt("value");
 				
-				table.getJSONObject().put("clean", clean);
-				table.save();
+				config.put("clean", clean);
 				
 				Agent.snmp.clean(clean);
 				
 				break;
 			
 			case DASHBOARD:
-				table.getJSONObject().put("dashboard", data.getJSONObject("value"));
-				table.save();
+				config.put("dashboard", data.getJSONObject("value"));
 				
 				break;
 			case DISPLAY:
-				table.getJSONObject().put("display", data.getString("value"));
-				table.save();
+				config.put("display", data.getString("value"));
 				
 				break;
 			case SMS:
-				table.getJSONObject().put("sms", data.getBoolean("value"));
-				table.save();
+				config.put("sms", data.getBoolean("value"));
+				
+				break;
+			case INTERVAL:
+				config.put("interval", data.getInt("value"));
 				
 				break;
 			case GCM:
@@ -60,7 +62,7 @@ public class Config implements Command {
 						Agent.gcmm = null;
 					}
 					
-					table.getJSONObject().put("gcm", JSONObject.NULL);
+					config.put("gcm", JSONObject.NULL);
 				}
 				else {
 					String host = data.getString("value");
@@ -69,16 +71,18 @@ public class Config implements Command {
 						Agent.gcmm = new GCMManager(Agent.API_KEY, data.getString("value"));
 					}
 					
-					table.getJSONObject().put("gcm", host);
+					config.put("gcm", host);
 				}
 				
-				table.save();
-				
-				return Response.getInstance(Response.Status.OK);
+				break;
 			default:
 				return Response.getInstance(Response.Status.BADREQUEST,
 					new JSONObject().put("error", "invalid config parameter").toString());
 			}
+			
+			Agent.config = config;
+			
+			table.save();
 			
 			return Response.getInstance(Response.Status.OK);
 		}

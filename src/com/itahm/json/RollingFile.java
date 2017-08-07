@@ -95,19 +95,24 @@ public class RollingFile {
 		}
 	}
 	
+	public void roll(long value) throws IOException {
+		roll(value, 1);
+	}
+	
 	/**
 	 * Roll.
 	 *
 	 * @param value the value
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 */
-	public void roll(long value) throws IOException {
+	public void roll(long value, int interval) throws IOException {
 		Calendar c = Calendar.getInstance();
 		String minString;
 		long hourMills, dayMills, elapse;
 
 		c.set(Calendar.MILLISECOND, 0);
 		c.set(Calendar.SECOND, 0);
+		c.set(Calendar.MINUTE, c.get(Calendar.MINUTE) /interval * interval);
 		
 		minString = Long.toString(c.getTimeInMillis());
 		

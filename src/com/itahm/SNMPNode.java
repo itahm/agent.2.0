@@ -110,7 +110,7 @@ public class SNMPNode extends Node {
 			dbToFile.put(index, rollingFile);
 		}
 		
-		rollingFile.roll(value);
+		rollingFile.roll(value, Agent.config.getInt("interval"));
 	}
 	
 	public JSONObject getData(String database, String index, long start, long end, boolean summary) {

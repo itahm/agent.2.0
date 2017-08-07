@@ -84,9 +84,7 @@ public class Log {
 			Agent.gcmm.broadcast(message);
 		}
 	
-		JSONObject config = Agent.getTable(Table.CONFIG).getJSONObject();
-		
-		if (config.has("sms") && config.getBoolean("sms")) {
+		if (Agent.config.has("sms") && Agent.config.getBoolean("sms")) {
 			Agent.enterprise.sendEvent(message);
 		}
 	}

@@ -44,7 +44,9 @@ public class ITAhM extends Listener implements Closeable {
 		File dataRoot = new File(root, DATA);
 		dataRoot.mkdir();
 		
-		this.agent.start(dataRoot);
+		if (!this.agent.start(dataRoot)) {
+			throw new Exception("ITAhM Agent 시작 실패.");
+		}
 	}
 	
 	@Override
@@ -216,7 +218,7 @@ public class ITAhM extends Listener implements Closeable {
 			Runtime.getRuntime().addShutdownHook(
 				new Thread() {
 					public void run() {
-						try {
+						try {System.out.println("!!!!");
 							itahm.close();
 						} catch (IOException ioe) {
 							ioe.printStackTrace();
