@@ -70,16 +70,6 @@ public class Agent implements ITAhMAgent, Runnable {
 		try {
 			config = new Config(dataRoot).getJSONObject();
 			
-			if (config.has("gcm")) {
-				if (!config.isNull("gcm")) {
-					gcmm = new GCMManager(API_KEY, config.getString("gcm"));
-				}
-			}
-			
-			if (!config.has("interval")) {
-				config.put("interval", 1);
-			}
-			
 			tableMap.put(Table.ACCOUNT, new Account(dataRoot));
 			tableMap.put(Table.PROFILE, new Profile(dataRoot));
 			tableMap.put(Table.DEVICE, new Device(dataRoot));
@@ -89,6 +79,16 @@ public class Agent implements ITAhMAgent, Runnable {
 			tableMap.put(Table.CRITICAL, new Critical(dataRoot));
 			tableMap.put(Table.GCM, new GCM(dataRoot));
 			tableMap.put(Table.SMS, new Table(dataRoot, Table.SMS));
+			
+			if (config.has("gcm")) {
+				if (!config.isNull("gcm")) {
+					gcmm = new GCMManager(API_KEY, config.getString("gcm"));
+				}
+			}
+			
+			if (!config.has("interval")) {
+				config.put("interval", 1);
+			}
 			
 			log = new Log(dataRoot);
 			snmp = new SNMPAgent(dataRoot);
