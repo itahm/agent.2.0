@@ -16,7 +16,6 @@ public class Enterprise implements Closeable {
 	}
 	
 	public void sendEvent(String event) {
-		System.out.println(event);
 	}
 
 	public int getLicense() {

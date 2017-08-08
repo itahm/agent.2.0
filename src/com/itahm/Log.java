@@ -8,7 +8,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.itahm.json.JSONObject;
-import com.itahm.table.Table;
 import com.itahm.http.Request;
 import com.itahm.http.Response;
 import com.itahm.util.Util;
