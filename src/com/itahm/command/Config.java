@@ -13,23 +13,14 @@ import com.itahm.http.Response;
 
 public class Config implements Command {
 	
-	public enum Key {
-		CLEAN,
-		DASHBOARD,
-		DISPLAY,
-		GCM,
-		SMS,
-		INTERVAL
-	}
-	
 	@Override
 	public Response execute(Request request, JSONObject data) throws IOException {
 		try {
 			Table table = Agent.getTable(Table.CONFIG);
 			JSONObject config = table.getJSONObject();
 			
-			switch(Key.valueOf(data.getString("key").toUpperCase())) {
-			case CLEAN:
+			switch(data.getString("key")) {
+			case "clean":
 				int clean = data.getInt("value");
 				
 				config.put("clean", clean);
@@ -38,23 +29,27 @@ public class Config implements Command {
 				
 				break;
 			
-			case DASHBOARD:
+			case "dashboard":
 				config.put("dashboard", data.getJSONObject("value"));
 				
 				break;
-			case DISPLAY:
+			case "display":
 				config.put("display", data.getString("value"));
 				
 				break;
-			case SMS:
+			case "sms":
 				config.put("sms", data.getBoolean("value"));
 				
 				break;
-			case INTERVAL:
+			case "interval":
 				config.put("interval", data.getInt("value"));
 				
 				break;
-			case GCM:
+			case "top":
+				config.put("top", data.getInt("value"));
+				
+				break;
+			case "gcm":
 				if (data.isNull("value")) {
 					if (Agent.gcmm != null) {
 						Agent.gcmm.close();
