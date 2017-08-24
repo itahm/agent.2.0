@@ -145,76 +145,7 @@ public class SNMPNode extends Node {
 				}};
 		}
 	}
-	/*
-	public String getIFNameFromARP(String mac) {
-		Integer index = super.macTable.get(mac);
-		
-		if (index == null) {
-			return null;
-		}
-
-		try {
-			return super.data.getJSONObject("ifEntry").getJSONObject(index.toString()).getString("ifName");
-		}
-		catch(JSONException jsone) {
-			Agent.log(String.format("%s ifEntry not found", ip));
-		}
-		
-		return null;
-	}
 	
-	public String getPeerIFName(SNMPNode peer){
-		if (!super.data.has("ifEntry")) {
-			return "";
-		}
-		
-		JSONObject ifEntry = super.data.getJSONObject("ifEntry");
-		JSONObject ifData;
-		String mac;
-		String name;
-		
-		for (Object index : ifEntry.keySet()) {
-			ifData = ifEntry.getJSONObject((String)index);
-			
-			if (!ifData.has("ifPhysAddress")) {
-				continue;
-			}
-			
-			mac = ifData.getString("ifPhysAddress");
-			
-			if (!"".equals(mac)) {
-				name = peer.getIFNameFromARP(mac);
-				
-				if (name != null) {
-					return name;
-				}
-			}
-		}
-		
-		return "";
-	}
-	
-	private void parseNetwork() {
-		for (String network : super.networkTable.keySet()) {
-			if ("127.0.0.1".equals(network)) {
-				continue;
-			}
-			
-			this.agent.onNetwork(network, super.networkTable.get(network));
-		}
-	}
-	
-	private void parseARP() {
-		Integer index;
-		for (String mac : super.arpTable.keySet()) {
-			index = super.macTable.get(mac);
-			
-			if (index != null) {
-				this.agent.onARP(mac, super.arpTable.get(mac), super.maskTable.get(index));
-			}
-		}
-	}
-	*/
 	private void parseResponseTime() throws IOException {
 		putData(Rolling.RESPONSETIME, "0", super.responseTime);
 		

@@ -18,6 +18,9 @@ public class Device extends Table {
 	 * 삭제인 경우 link 데이터, position 정보, monior 정보를 함께 삭제해 주어야 한다.
 	 * @throws IOException 
 	 */
+	
+	// TODO 삭제의 경우 critical 정보는?
+	
 	public JSONObject put(String ip, JSONObject device) throws IOException {
 		if (device == null) {
 			if (super.table.has(ip)) {

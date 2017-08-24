@@ -13,7 +13,7 @@ abstract public class Critical {
 		PROCESSOR("Processor load"),
 		MEMORY("Physical memory"),
 		STORAGE("Storage usage"),
-		THROUGHPUT("interface throughput");
+		THROUGHPUT("Interface throughput");
 		
 		private final String alias;
 		
@@ -21,6 +21,7 @@ abstract public class Critical {
 			this.alias = alias;
 		}
 		
+		@Override
 		public String toString() {
 			return this.alias;
 		}
@@ -30,9 +31,9 @@ abstract public class Critical {
 	public static byte CRITIC = 0x01;
 	public static byte DIFF = 0x10;
 	
-	private final Map<Resource, HashMap<String, Data>> mapping = new HashMap<>();
+	private final Map<Resource, Map<String, Data>> mapping = new HashMap<>();
 	
-	public Critical(JSONObject criticalCondition) {
+	public Critical(JSONObject criticData) {
 		JSONObject list;
 		
 		for (Resource resource: Resource.values()) {
@@ -40,10 +41,9 @@ abstract public class Critical {
 		}
 		
 		Resource resource;
+		Map<String, Data> rscData;
 		
-		for (Object key : criticalCondition.keySet()) {
-			list = criticalCondition.getJSONObject((String)key);
-			
+		for (Object key : criticData.keySet()) {			
 			try {
 				resource = Resource.valueOf(((String)key).toUpperCase());
 			}
@@ -51,9 +51,18 @@ abstract public class Critical {
 				continue;
 			}
 			
+			list = criticData.getJSONObject((String)key);
+			
 			for (Object index: list.keySet()) {
+				if (!mapping.containsKey(resource)) {
+					mapping.put(resource, rscData = new HashMap<>());
+				}
+				else {
+					rscData = mapping.get(resource);
+				}
+				
 				try {
-					mapping.get(resource).put((String)index, new Data(list.getJSONObject((String)index).getInt("limit")));
+					rscData.put((String)index, new Data(list.getJSONObject((String)index).getInt("limit")));
 				}
 				catch(JSONException jsone) {
 					Agent.log(Util.EToString(jsone));
@@ -63,15 +72,26 @@ abstract public class Critical {
 	}
 	
 	public void analyze(Resource resource, String index, long max, long current) {
+		Map<String, Data> rscData = this.mapping.get(resource);
 		
-		Data critical = this.mapping.get(resource).get(index);
-		
-		if (critical == null) {
+		if (rscData == null) {
 			return;
 		}
 		
+		Data data = rscData.get(index);
+		
+		if (data == null) {
+			if (resource.equals(Resource.PROCESSOR)) {
+				data = rscData.get("0").clone();
+				rscData.put(index, data);
+			}
+			else {
+				return;
+			}
+		}
+		
 		long rate = current *100 / max;
-		byte flag = critical.test(rate);
+		byte flag = data.test(rate);
 		
 		if (isDiff(flag)) {
 			onCritical(isCritical(flag), resource, index, rate);
@@ -110,6 +130,12 @@ abstract public class Critical {
 			
 			return (byte)(DIFF | (isCritic? CRITIC : NONE));
 		}
+		
+		@Override
+		public Data clone() {
+			return new Data(this.limit);
+		}
+		
 	}
 	
 	abstract public void onCritical(boolean isCritical, Resource resource, String index, long rate);

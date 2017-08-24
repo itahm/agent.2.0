@@ -69,13 +69,7 @@ public abstract class Node extends Thread {
 	protected final Map<String, Integer> hrProcessorEntry = new HashMap<>();
 	protected final Map<String, JSONObject> hrStorageEntry = new HashMap<>();
 	protected final Map<String, JSONObject> ifEntry = new HashMap<>();
-	/*protected final Map<String, String> arpTable = new HashMap<>(); // mac - ip
-	protected final Map<String, Integer> macTable = new HashMap<>(); // mac - index
-	protected final Map<String, Integer> ipTable = new HashMap<>(); // ip - index
-	protected final Map<String, Integer> remoteIPTable = new HashMap<>(); //ip - index
-	protected final Map<String, String> networkTable = new HashMap<>(); //ip - mask
-	protected final Map<Integer, String> maskTable = new HashMap<>(); //index - mask
-	*/
+	
 	public Node(Snmp snmp, String ip, int timeout) throws IOException {
 		this.snmp = snmp;
 		this.ip = InetAddress.getByName(ip);
@@ -194,14 +188,7 @@ public abstract class Node extends Thread {
 		hrProcessorEntry.clear();
 		hrStorageEntry.clear();
 		ifEntry.clear();
-		/*
-		arpTable.clear();
-		remoteIPTable.clear();
-		macTable.clear();
-		ipTable.clear();
-		networkTable.clear();
-		maskTable.clear();
-		*/
+		
 		this.pdu.setRequestID(new Integer32(0));
 		
 		this.processing = false;
@@ -387,68 +374,7 @@ public abstract class Node extends Thread {
 		
 		return true;
 	}
-	/*
-	private final boolean parseIP(OID response, Variable variable, OID request) {
-		byte [] array = response.toByteArray();
-		String ip = new IpAddress(new byte [] {array[array.length -4], array[array.length -3], array[array.length -2], array[array.length -1]}).toString();
-		
-		if (request.startsWith(RequestOID.ipAddrTable)) {
-			if (request.startsWith(RequestOID.ipAdEntIfIndex) && response.startsWith(RequestOID.ipAdEntIfIndex)) {
-				if (this.data.has("ifEntry")) {
-					JSONObject ifEntry = this.data.getJSONObject("ifEntry");
-					Integer index = ((Integer32)variable).getValue();
-					
-					if (ifEntry.has(index.toString())) {
-						String mac = ifEntry.getJSONObject(index.toString()).getString("ifPhysAddress");
-						
-						this.arpTable.put(mac, ip);
-						this.macTable.put(mac, index);
-						this.ipTable.put(ip, index);
-					}
-				}
-			}
-			else if (request.startsWith(RequestOID.ipAdEntNetMask) && response.startsWith(RequestOID.ipAdEntNetMask)) {
-				String mask = ((IpAddress)variable).toString();
-				
-				this.networkTable.put(ip, mask);
-				
-				this.maskTable.put(this.ipTable.get(ip), mask);
-			}
-			else {
-				return false;
-			}
-		} else if (request.startsWith(RequestOID.ipNetToMediaTable)) {
-			int index = array[array.length -5];
-			
-			if (request.startsWith(RequestOID.ipNetToMediaType) && response.startsWith(RequestOID.ipNetToMediaType)) {
-				if (((Integer32)variable).getValue() == 3) {
-					this.remoteIPTable.put(ip, index);
-				}
-			}
-			else if (request.startsWith(RequestOID.ipNetToMediaPhysAddress) && response.startsWith(RequestOID.ipNetToMediaPhysAddress)) {
-				if (this.remoteIPTable.containsKey(ip) && this.remoteIPTable.get(ip) == index) {
-					byte [] mac = ((OctetString)variable).getValue();
-					String macString = String.format("%02X", 0L |mac[0] & 0xff);
-					
-					for (int i=1; i<mac.length; i++) {
-						macString += String.format("-%02X", 0L |mac[i] & 0xff);
-					}
-					
-					this.macTable.put(macString, index);
-					this.arpTable.put(macString, ip);
-				}
-			}
-			else {
-				return false;
-			}
-		}
-		else {
-			return false;
-		}
-		
-		return true;
-	}
-	*/
+	
 	private final boolean parseCisco(OID response, Variable variable, OID request) {
 		String index = Integer.toString(response.last());
 		
