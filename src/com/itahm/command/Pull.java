@@ -23,8 +23,11 @@ public class Pull implements Command {
 					new JSONObject().put("error", "database not found").toString());
 			}
 			else {
+				JSONObject json;
+				String body;
+				
 				if (table instanceof Config) {
-					data = table.getJSONObject()
+					json = table.getJSONObject()
 						.put("space", Agent.getUsableSpace())
 						.put("version", Agent.VERSION)
 						.put("load", Agent.snmp.getLoad())
@@ -32,10 +35,14 @@ public class Pull implements Command {
 						.put("java", System.getProperty("java.version"));
 				}
 				else {
-					data = table.getJSONObject();
+					json = table.getJSONObject();
 				}
 				
-				return Response.getInstance(Response.Status.OK, data.toString());
+				synchronized(json) {
+					body = json.toString();
+				}
+				
+				return Response.getInstance(Response.Status.OK, body);
 			}
 		}
 		catch (JSONException jsone) {

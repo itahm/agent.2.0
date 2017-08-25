@@ -16,13 +16,19 @@ public class Select implements Command {
 		try {
 			JSONObject nodeData = Agent.snmp.getNodeData(data.getString("ip"), data.has("offline"));
 			
-			if (nodeData != null) {
-				return Response.getInstance(Response.Status.OK, nodeData.toString());
-			}
-			else {
+			if (nodeData == null) {
 				return Response.getInstance(Response.Status.BADREQUEST,
 					new JSONObject().put("error", "node not found").toString());
 			}
+			
+			String body;
+			
+			// nodeData 변경가능성 있기 때문에 동기화
+			synchronized(nodeData) {
+				body = nodeData.toString();
+			}
+			
+			return Response.getInstance(Response.Status.OK, body);
 		}
 		catch(NullPointerException npe) {npe.printStackTrace();
 			return Response.getInstance(Response.Status.UNAVAILABLE);

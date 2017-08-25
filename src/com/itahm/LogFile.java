@@ -56,6 +56,7 @@ public class LogFile extends DailyFile {
 	}
 	
 	private void write() throws IOException {
+		// dailyFile 은 쓰기와 읽기가 별개임 (읽기는 파일로부터 직접) 동기화 불필요.
 		byte [] ba = this.log.toString().getBytes(StandardCharsets.UTF_8);
 		
 		super.write(ba);

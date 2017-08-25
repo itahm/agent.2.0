@@ -74,7 +74,14 @@ public class Util {
 	
 	public static JSONObject putJSONtoFile(File file, JSONObject json) throws IOException {
 		try (FileOutputStream fos = new FileOutputStream(file)) {
-			fos.write(json.toString().getBytes(StandardCharsets.UTF_8));
+			String s;
+			
+			// 외부에서 json이 수정될 수 있기 때문에 동기화
+			synchronized(json) {
+				s = json.toString();
+			}
+			
+			fos.write(s.getBytes(StandardCharsets.UTF_8));
 		}
 		
 		return json;

@@ -201,7 +201,8 @@ public class Agent implements ITAhMAgent, Runnable {
 				try {
 					session = signIn(data);
 				} catch (JSONException jsone) {
-					return Response.getInstance(Response.Status.BADREQUEST, new JSONObject().put("error", "invalid json request").toString());
+					return Response.getInstance(Response.Status.BADREQUEST
+						, new JSONObject().put("error", "invalid json request").toString());
 				}
 			}
 			
@@ -225,7 +226,8 @@ public class Agent implements ITAhMAgent, Runnable {
 		Command command = Commander.getCommand(cmd);
 		
 		if (command == null) {
-			return Response.getInstance(Response.Status.BADREQUEST, new JSONObject().put("error", "invalid command").toString());
+			return Response.getInstance(Response.Status.BADREQUEST
+				, new JSONObject().put("error", "invalid command").toString());
 		}
 		
 		try {
@@ -238,7 +240,8 @@ public class Agent implements ITAhMAgent, Runnable {
 			}
 		}
 		catch (IOException ioe) {
-			return Response.getInstance(Response.Status.UNAVAILABLE, new JSONObject().put("error", ioe).toString());
+			return Response.getInstance(Response.Status.UNAVAILABLE
+				, new JSONObject().put("error", ioe).toString());
 		}
 			
 		return Response.getInstance(Response.Status.UNAUTHORIZED);

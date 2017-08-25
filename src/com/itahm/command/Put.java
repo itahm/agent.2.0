@@ -22,8 +22,14 @@ public class Put implements Command {
 					new JSONObject().put("error", "database not found").toString());
 			}
 			else {
-				return Response.getInstance(Response.Status.OK,
-					table.put(data.getString("key"), data.isNull("value")? null: data.getJSONObject("value")).toString());
+				JSONObject json = table.put(data.getString("key"), data.isNull("value")? null: data.getJSONObject("value"));
+				String body;
+				
+				synchronized(json) {
+					body = json.toString();
+				}
+				
+				return Response.getInstance(Response.Status.OK, body);
 			}
 		}
 		catch (JSONException jsone) {

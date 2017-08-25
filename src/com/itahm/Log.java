@@ -90,7 +90,8 @@ public class Log {
 	
 	public void sysLog(String log) {
 		try {
-			this.sysLog.write((log + System.lineSeparator()).toString().getBytes(StandardCharsets.UTF_8));
+			//this.sysLog.write((log + System.lineSeparator()).toString().getBytes(StandardCharsets.UTF_8));
+			this.sysLog.write((log + System.lineSeparator()).getBytes(StandardCharsets.UTF_8));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

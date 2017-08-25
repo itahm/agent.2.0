@@ -106,12 +106,15 @@ public class ITAhM extends Listener implements Closeable {
 				data = new JSONObject(new String(request.getRequestBody(), StandardCharsets.UTF_8.name()));
 				
 				if (!data.has("command")) {
-					return Response.getInstance(Response.Status.BADREQUEST, new JSONObject().put("error", "command not found").toString());
+					return Response.getInstance(Response.Status.BADREQUEST
+						, new JSONObject().put("error", "command not found").toString());
 				}
 			} catch (JSONException e) {
-				return Response.getInstance(Response.Status.BADREQUEST, new JSONObject().put("error", "invalid json request").toString());
+				return Response.getInstance(Response.Status.BADREQUEST
+					, new JSONObject().put("error", "invalid json request").toString());
 			} catch (UnsupportedEncodingException e) {
-				return Response.getInstance(Response.Status.BADREQUEST, new JSONObject().put("error", "UTF-8 encoding required").toString());
+				return Response.getInstance(Response.Status.BADREQUEST
+					, new JSONObject().put("error", "UTF-8 encoding required").toString());
 			}
 			
 			return this.agent.executeRequest(request, data);

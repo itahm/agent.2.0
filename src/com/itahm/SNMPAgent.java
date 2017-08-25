@@ -712,40 +712,6 @@ public class SNMPAgent extends Snmp implements Closeable {
 		this.topTable.submit(ip, resource, value);
 	}
 	
-	/**
-	 * 
-	 * @param mac
-	 * @param ip
-	 * @param mask
-	 
-	public void onARP(String mac, String ip, String mask) {
-		if ("127.0.0.1".equals(ip)) {
-			return;
-		}
-		
-		this.arp.put(mac, new JSONObject().put("ip", ip).put("mask", mask));
-	}
-	
-	public JSONObject getARP() {
-		return new JSONObject(this.arp);
-	}
-	
-	public void onNetwork(String ip, String mask) {
-		byte [] ipArray = new IpAddress(ip).toByteArray();
-		byte [] maskArray = new IpAddress(mask).toByteArray();
-		int length = ipArray.length;
-		
-		for (int i=0; i<length; i++) {
-			ipArray[i] = (byte)(ipArray[i] & maskArray[i]);
-		}
-		
-		this.network.put(new IpAddress(ipArray).toString(), mask);
-	}
-	
-	public JSONObject getNetwork() {
-		return new JSONObject(this.network);
-	}
-	*/
 	private void sendNextRequest(final SNMPNode node) {
 		this.timer.schedule(
 			new TimerTask() {
