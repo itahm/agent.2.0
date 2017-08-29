@@ -11,10 +11,13 @@ import com.itahm.json.JSONException;
 import com.itahm.json.JSONObject;
 
 import com.itahm.icmp.ICMPListener;
+import com.itahm.icmp.ICMPNode;
 import com.itahm.table.Table;
 import com.itahm.util.Util;
 
 public class ICMPAgent implements ICMPListener, Closeable {
+	
+	private final static int [] TIMEOUTS = new int [] {2000, 3000, 5000};
 	
 	private final Map<String, ICMPNode> nodeList = new HashMap<>();
 	private final Table monitorTable = Agent.getTable(Table.MONITOR);
@@ -37,13 +40,13 @@ public class ICMPAgent implements ICMPListener, Closeable {
 	
 	private void addNode(String ip) {
 		try {
-			ICMPNode node = new ICMPNode(this, ip);
+			ICMPNode node = new ICMPNode(this, ip, TIMEOUTS);
 			
 			synchronized (this.nodeList) {
 				this.nodeList.put(ip, node);
 			}
 			
-			node.start();
+			node.ping(0);
 		} catch (UnknownHostException uhe) {
 			Agent.log(Util.EToString(uhe));
 		}		
@@ -61,9 +64,9 @@ public class ICMPAgent implements ICMPListener, Closeable {
 		}
 		
 		try {
-			node.stop();
-		} catch (InterruptedException ie) {
-			Agent.log(Util.EToString(ie));
+			node.close();
+		} catch (IOException ioe) {
+			Agent.log(Util.EToString(ioe));
 		}
 		
 		return true;
@@ -112,18 +115,8 @@ public class ICMPAgent implements ICMPListener, Closeable {
 		}).start();
 	}
 	
-	public void onSuccess(String ip, long time) {
-		ICMPNode node;
-		
-		synchronized (this.nodeList) {
-			node = this.nodeList.get(ip);
-		}
-		
-		if (node == null) {
-			return;
-		}
-	
-		JSONObject monitor = this.monitorTable.getJSONObject(ip);
+	public void onSuccess(ICMPNode node, long time) {
+		JSONObject monitor = this.monitorTable.getJSONObject(node.ip);
 		
 		if (monitor == null) {
 			return;
@@ -138,22 +131,14 @@ public class ICMPAgent implements ICMPListener, Closeable {
 				Agent.log(Util.EToString(ioe));
 			}
 			
-			Agent.log.write(ip, String.format("%s ICMP 정상.", ip), "shutdown", true, true);
+			Agent.log.write(node.ip, String.format("%s ICMP 정상.", node.ip), "shutdown", true, true);
 		}
+		
+		node.ping(1000);
 	}
 	
-	public void onFailure(String ip) {
-		ICMPNode node;
-		
-		synchronized (this.nodeList) {
-			node = this.nodeList.get(ip);
-		}
-		
-		if (node == null) {
-			return;
-		}
-		
-		JSONObject monitor = this.monitorTable.getJSONObject(ip);
+	public void onFailure(ICMPNode node) {
+		JSONObject monitor = this.monitorTable.getJSONObject(node.ip);
 		
 		if (monitor == null) {
 			return;
@@ -168,8 +153,10 @@ public class ICMPAgent implements ICMPListener, Closeable {
 				Agent.log(Util.EToString(ioe));
 			}
 			
-			Agent.log.write(ip, String.format("%s ICMP 응답 없음.", ip), "shutdown", false, true);
+			Agent.log.write(node.ip, String.format("%s ICMP 응답 없음.", node.ip), "shutdown", false, true);
 		}
+		
+		node.ping(0);
 	}
 	
 	/**
@@ -182,9 +169,9 @@ public class ICMPAgent implements ICMPListener, Closeable {
 		synchronized (this.nodeList) {
 			for (ICMPNode node : this.nodeList.values()) {
 				try {
-					node.stop();
-				} catch (InterruptedException ie) {
-					e = ie;
+					node.close();
+				} catch (IOException ioe) {
+					e = ioe;
 				}
 			}
 		}
