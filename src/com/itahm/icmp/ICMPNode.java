@@ -25,7 +25,7 @@ public class ICMPNode extends Thread implements Closeable {
 		target = InetAddress.getByName(ip);
 		retry = timeouts.length;
 		
-		setDaemon(true);
+		//setDaemon(true);
 		start();
 	}
 	
@@ -33,7 +33,7 @@ public class ICMPNode extends Thread implements Closeable {
 	public void run() {
 		long sent, delay;
 		
-		init: while (!Thread.interrupted()) {
+		init: while (!isInterrupted()) {
 			try {
 				try {
 					delay = bq.take();
@@ -45,28 +45,36 @@ public class ICMPNode extends Thread implements Closeable {
 					sent = System.currentTimeMillis();
 					
 					for (int i=0; i < retry; i++) {
+						if (isInterrupted()) {
+							throw new InterruptedException();
+						}
+						
 						if (this.target.isReachable(timeouts[i])) {
 							this.listener.onSuccess(this, System.currentTimeMillis() - sent);
 							
 							continue init;
 						}
 					}
+					
 				} catch (IOException e) {}
 				
 				this.listener.onFailure(this);
 				
 			} catch (InterruptedException e) {
+				
 				break;
 			}
 		}
+	}
+	
+	public void ping() {
+		ping(0);
 	}
 	
 	public void ping(long delay) {
 		try {
 			bq.put(delay);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 	}
 
@@ -78,6 +86,33 @@ public class ICMPNode extends Thread implements Closeable {
 			join();
 		} catch (InterruptedException e) {
 		}
+	}
+	
+	public static void main(String [] args) throws IOException {
+		ICMPNode node = new ICMPNode(new ICMPListener() {
+			@Override
+			public void onSuccess(ICMPNode node, long time) {
+				System.out.println("success");
+			}
+
+			@Override
+			public void onFailure(ICMPNode node) {
+				System.out.println("failure");
+			}
+		}, "192.168.0.100", new int [] {1000, 1000, 1000, 1000, 1000});
+		
+		root: while (true) {
+			switch (System.in.read()) {
+			case 'p':
+				node.ping();
+				break;
+			case 'c':
+				node.close();
+			case 'x':
+				break root;
+			}
+		}
+		
 	}
 	
 }
