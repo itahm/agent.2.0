@@ -32,7 +32,7 @@ import com.itahm.table.Profile;
 import com.itahm.table.Table;
 import com.itahm.enterprise.Enterprise;
 
-public class Agent implements ITAhMAgent, Runnable {
+public class Agent implements ITAhMAgent {
 
 	public final static String VERSION = "2.0.3.0";
 	public final static String API_KEY = "AIzaSyBg6u1cj9pPfggp-rzQwvdsTGKPgna0RrA";
@@ -50,9 +50,9 @@ public class Agent implements ITAhMAgent, Runnable {
 	public static ICMPAgent icmp;
 	public static Enterprise enterprise = Enterprise.getInstance();
 	public static JSONObject config;
+	private final static Batch batch = new Batch();
 	private static File root;
 	private boolean isClosed = true;
-	private final Thread diskMonitor = new Thread(this);
 	
 	public Agent() {
 		System.out.format("ITAhM Agent version %s ready.\n", VERSION);
@@ -105,7 +105,7 @@ public class Agent implements ITAhMAgent, Runnable {
 				}
 			}
 			
-			this.diskMonitor.start();
+			batch.start(root);
 			
 			System.out.println("ITAhM agent up.");
 			
@@ -132,12 +132,13 @@ public class Agent implements ITAhMAgent, Runnable {
 				, c.get(Calendar.SECOND), msg));
 	}
 	
-	public static long getUsableSpace() {
-		if (root == null) {
-			return 0;
-		}
-		
-		return root.getUsableSpace();
+	public static JSONObject getInformation(JSONObject json) {
+		return json.put("space", root == null? 0: root.getUsableSpace())
+			.put("version", VERSION)
+			.put("load", snmp.getLoad())
+			.put("resource", snmp.getResourceCount())
+			.put("usage", Batch.lastDiskUsage)
+			.put("java", System.getProperty("java.version"));
 	}
 	
 	private Session signIn(JSONObject data) {
@@ -260,14 +261,7 @@ public class Agent implements ITAhMAgent, Runnable {
 		
 		this.isClosed = true;
 		
-		this.diskMonitor.interrupt();
-		
-		try {
-			this.diskMonitor.join();
-		}
-		catch (InterruptedException ie) {
-			ie.printStackTrace();
-		}
+		batch.stop();
 		
 		if (snmp != null) {
 			snmp.close();
@@ -298,32 +292,6 @@ public class Agent implements ITAhMAgent, Runnable {
 	public void set(Object value) {
 		// TODO Auto-generated method stub
 		
-	}
-
-	private final static long MAX = 100;
-	private final static long INTERVAL = 10000;
-	private final static long CRITICAL = 10;
-	
-	@Override
-	public void run() {
-		long lastFreeSpace = MAX;
-		long freeSpace;
-		
-		while (!Thread.interrupted()) {
-			freeSpace = MAX * root.getUsableSpace() / root.getTotalSpace();
-			
-			if (freeSpace < lastFreeSpace && freeSpace < CRITICAL) {
-				Agent.log.write("ITAhM", String.format("저장 여유공간 %d%%", freeSpace), "system", false, true);
-			}
-			
-			lastFreeSpace = freeSpace;
-			
-			try {
-				Thread.sleep(INTERVAL);
-			} catch (InterruptedException e) {
-				break;
-			}
-		}
 	}
 
 }

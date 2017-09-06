@@ -141,9 +141,6 @@ public class SNMPAgent extends Snmp implements Closeable {
 					load = new JSONObject(this.map);
 				}
 			}}, 10 *60 *1000, 10 *60 *1000);
-		
-		//arp = new HashMap<String, JSONObject>();
-		//network = new HashMap<String, String>();
 		 
 		nodeRoot = new File(root, "node");
 		nodeRoot.mkdir();

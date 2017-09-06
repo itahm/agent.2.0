@@ -27,12 +27,7 @@ public class Pull implements Command {
 				String body;
 				
 				if (table instanceof Config) {
-					json = table.getJSONObject()
-						.put("space", Agent.getUsableSpace())
-						.put("version", Agent.VERSION)
-						.put("load", Agent.snmp.getLoad())
-						.put("resource", Agent.snmp.getResourceCount())
-						.put("java", System.getProperty("java.version"));
+					json = Agent.getInformation(table.getJSONObject());
 				}
 				else {
 					json = table.getJSONObject();
