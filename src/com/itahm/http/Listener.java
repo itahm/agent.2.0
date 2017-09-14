@@ -57,7 +57,11 @@ public abstract class Listener extends Timer implements Runnable, Closeable {
 		channel.configureBlocking(false);
 		channel.register(selector, SelectionKey.OP_ACCEPT);
 		
-		new Thread(this).start();
+		Thread t = new Thread(this);
+		
+		t.setName("ITAhM HTTP Listener");
+		
+		t.start();
 		
 		onStart();
 	}
@@ -130,7 +134,7 @@ public abstract class Listener extends Timer implements Runnable, Closeable {
 			
 		connections.clear();
 		
-		cancel();
+		super.cancel();
 		
 		this.selector.wakeup();
 	}

@@ -32,6 +32,9 @@ public abstract class DownStream implements Runnable, Closeable {
 		auth = "key="+ apiKey;
 		
 		thread = new Thread(this);
+		
+		thread.setName("ITAhM GCM downstream");
+		
 		thread.start();
 	}
 	

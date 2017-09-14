@@ -16,37 +16,34 @@ public class Config implements Command {
 	@Override
 	public Response execute(Request request, JSONObject data) throws IOException {
 		try {
-			Table table = Agent.getTable(Table.CONFIG);
-			JSONObject config = table.getJSONObject();
-			
 			switch(data.getString("key")) {
 			case "clean":
 				int clean = data.getInt("value");
 				
-				config.put("clean", clean);
+				Agent.config.put("clean", clean);
 				
-				Agent.snmp.clean(clean);
+				Agent.snmp.clean();
 				
 				break;
 			
 			case "dashboard":
-				config.put("dashboard", data.getJSONObject("value"));
+				Agent.config.put("dashboard", data.getJSONObject("value"));
 				
 				break;
 			case "display":
-				config.put("display", data.getString("value"));
+				Agent.config.put("display", data.getString("value"));
 				
 				break;
 			case "sms":
-				config.put("sms", data.getBoolean("value"));
+				Agent.config.put("sms", data.getBoolean("value"));
 				
 				break;
 			case "interval":
-				config.put("interval", data.getInt("value"));
+				Agent.config.put("interval", data.getInt("value"));
 				
 				break;
 			case "top":
-				config.put("top", data.getInt("value"));
+				Agent.config.put("top", data.getInt("value"));
 				
 				break;
 			case "gcm":
@@ -57,7 +54,7 @@ public class Config implements Command {
 						Agent.gcmm = null;
 					}
 					
-					config.put("gcm", JSONObject.NULL);
+					Agent.config.put("gcm", JSONObject.NULL);
 				}
 				else {
 					String host = data.getString("value");
@@ -66,7 +63,7 @@ public class Config implements Command {
 						Agent.gcmm = new GCMManager(Agent.API_KEY, data.getString("value"));
 					}
 					
-					config.put("gcm", host);
+					Agent.config.put("gcm", host);
 				}
 				
 				break;
@@ -75,9 +72,7 @@ public class Config implements Command {
 					new JSONObject().put("error", "invalid config parameter").toString());
 			}
 			
-			Agent.config = config;
-			
-			table.save();
+			Agent.getTable(Table.CONFIG).save();
 			
 			return Response.getInstance(Response.Status.OK);
 		}

@@ -4,15 +4,24 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.itahm.json.JSONObject;
+
 public class Batch {
-	private final static long DISK_MON_INTV = 10000;
+	private final static int QUEUE_SIZE = 24;
+	private final static long MINUTE1 = 60 *1000;
+	private final static long MINUTE10 = MINUTE1 *10;
+	private final static long HOUR1 = MINUTE1 *60;
+	private final static long DAY1 = 24 * HOUR1;
 	
 	private Timer timer;
 	
-	public static long lastDiskUsage = 0;
+	public long lastDiskUsage = 0;
+	public JSONObject load = new JSONObject();
 	
 	public boolean start(final File root) {
 		if (this.timer != null) {
@@ -23,6 +32,8 @@ public class Batch {
 		
 		scheduleDiskMonitor(root);
 		scheduleUsageMonitor(new File(root, "node"));
+		scheduleLoadMonitor();
+		scheduleDiskCleaner();
 		
 		return true;
 	}
@@ -95,6 +106,27 @@ public class Batch {
 		}, c.getTime(), 24 * 60 * 60 * 1000);
 	}
 	
+	private final void scheduleDiskCleaner() {
+		Calendar c = Calendar.getInstance();
+		
+		c.set(Calendar.DATE, c.get(Calendar.DATE) +1);
+		c.set(Calendar.HOUR_OF_DAY, 0);
+		c.set(Calendar.MINUTE, 0);
+		c.set(Calendar.SECOND, 0);
+		c.set(Calendar.MILLISECOND, 0);
+		
+		Agent.snmp.clean();
+		
+		this.timer.schedule(new TimerTask() {
+
+			@Override
+			public void run() {
+				Agent.snmp.clean();
+			}
+			
+		}, c.getTime(), DAY1);
+	}
+	
 	private final void scheduleDiskMonitor(final File root) {
 		this.timer.schedule(new TimerTask() {
 			private final static long MAX = 100;
@@ -114,7 +146,41 @@ public class Batch {
 					lastFreeSpace = freeSpace;
 					
 			}
-		}, 0, DISK_MON_INTV);
+		}, 0, MINUTE1);
 	}
 
+	private final void scheduleLoadMonitor() {
+		
+		this.timer.schedule(new TimerTask() {
+			private Long [] queue = new Long[QUEUE_SIZE];
+			private Map<Long, Long> map = new HashMap<>();
+			private Calendar c;
+			private int position = 0;
+			
+			@Override
+			public void run() {
+				long key;
+				
+				c = Calendar.getInstance();
+				
+				c.set(Calendar.MINUTE, 0);
+				c.set(Calendar.SECOND, 0);
+				c.set(Calendar.MILLISECOND, 0);
+				
+				key = c.getTimeInMillis();
+				
+				if (this.map.put(key, Agent.snmp.calcLoad()) == null) {
+					if (this.queue[this.position] != null) {
+						this.map.remove(this.queue[this.position]);
+					}
+					
+					this.queue[this.position++] = key;
+					
+					this.position %= QUEUE_SIZE;
+					
+					load = new JSONObject(this.map);
+				}
+				
+			}}, MINUTE10, MINUTE10);
+	}
 }

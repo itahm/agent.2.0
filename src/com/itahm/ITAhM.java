@@ -8,6 +8,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Calendar;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.regex.Pattern;
 
 import com.itahm.ITAhMAgent;
@@ -19,17 +22,35 @@ import com.itahm.json.JSONObject;
 
 public class ITAhM extends Listener implements Closeable {
 	
+	private final static long DAY1 = 24 *60 *60 *1000;
 	private final static String DATA = "data";
+	public static long expire = 1507906800000L;
+	/*
+	{
+		Calendar c = Calendar.getInstance();
+		
+		c.set(Calendar.HOUR_OF_DAY, 0);
+		c.set(Calendar.MINUTE, 0);
+		c.set(Calendar.SECOND, 0);
+		c.set(Calendar.MILLISECOND, 0);
+		c.set(Calendar.MONTH, c.get(Calendar.MONTH) +1);
+		
+		System.out.println(c.getTimeInMillis());
+	}
+	*/
+	private final Timer timer = new Timer();
 	
 	enum Options {
 		PATH, TCP;
 	}
 	
-	private final File root;
-	private ITAhMAgent agent;
+	private File root;
+	private final static ITAhMAgent agent = new Agent();
 	
 	public ITAhM(int tcp, File root, boolean clean) throws Exception {
 		super("0.0.0.0", tcp);
+		
+		final ITAhM itahm = this;
 		
 		System.out.format("ITAhM communicator started with TCP %d.\n", tcp);
 		
@@ -39,14 +60,24 @@ public class ITAhM extends Listener implements Closeable {
 		
 		System.out.format("Agent loading...\n");
 		
-		this.agent = new Agent();
-		
 		File dataRoot = new File(root, DATA);
 		dataRoot.mkdir();
 		
-		if (!this.agent.start(dataRoot)) {
+		if (!agent.start(dataRoot)) {
 			throw new Exception("ITAhM Agent 시작 실패.");
 		}
+		
+		this.timer.schedule(new TimerTask() {	
+			
+			@Override
+			public void run() {
+				if (expire > 0 && Calendar.getInstance().getTimeInMillis() > expire) {
+					System.out.println("License expired.");
+					
+					itahm.close();
+				}
+			}
+		}, 0, DAY1);
 	}
 	
 	@Override
@@ -61,7 +92,7 @@ public class ITAhM extends Listener implements Closeable {
 	
 	@Override
 	protected void onClose(Request request) {	
-		this.agent.closeRequest(request);
+		agent.closeRequest(request);
 	}
 	
 	@Override
@@ -69,10 +100,18 @@ public class ITAhM extends Listener implements Closeable {
 		Agent.log.sysLog(e.getMessage());
 	}
 	
+	public static void testExpire() {
+		if (expire > 0 && Calendar.getInstance().getTimeInMillis() > expire) {
+			System.out.println("License expired.");
+			
+			agent.stop();
+		}
+	}
+	
 	public static void sendResponse(Request request, Response response) throws IOException {
 		String origin = request.getRequestHeader(Request.Header.ORIGIN);
 		
-		if (origin == null) {
+		if (Agent.isDemo || origin == null) {
 			origin = "http://itahm.com";
 		}
 	
@@ -117,7 +156,7 @@ public class ITAhM extends Listener implements Closeable {
 					, new JSONObject().put("error", "UTF-8 encoding required").toString());
 			}
 			
-			return this.agent.executeRequest(request, data);
+			return agent.executeRequest(request, data);
 			
 		case "GET":
 			String uri = request.getRequestURI();
@@ -134,10 +173,16 @@ public class ITAhM extends Listener implements Closeable {
 	}
 	
 	@Override
-	public void close() throws IOException {
-		super.close();
+	public void close() {
+		try {
+			super.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		
-		this.agent.stop();
+		agent.stop();
+		
+		this.timer.cancel();
 	}
 	
 	public static void download(URL url, File output) throws IOException {
@@ -221,11 +266,7 @@ public class ITAhM extends Listener implements Closeable {
 			Runtime.getRuntime().addShutdownHook(
 				new Thread() {
 					public void run() {
-						try {
-							itahm.close();
-						} catch (IOException ioe) {
-							ioe.printStackTrace();
-						}
+						itahm.close();
 					}
 				});
 		}

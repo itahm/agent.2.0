@@ -9,7 +9,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.UnknownHostException;
 import java.util.Calendar;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -53,7 +52,7 @@ import com.itahm.util.Util;
 public class SNMPAgent extends Snmp implements Closeable {
 	
 	private final static long REQUEST_INTERVAL = 10000;
-	private final static int QUEUE_SIZE = 24;
+	private boolean isClosed = false;
 	
 	public enum Resource {
 		RESPONSETIME("responseTime"),
@@ -86,15 +85,9 @@ public class SNMPAgent extends Snmp implements Closeable {
 	private final Table criticalTable;
 	private final TopTable<Resource> topTable;
 	private final Timer timer;
-	//private final Map<String, JSONObject> arp;
-	//private final Map<String, String> network;
 	private final Extension enterprise;
-	private JSONObject load = new JSONObject();
-	
-	private Thread cleaner = null;
 	
 	public SNMPAgent(File root) throws IOException {
-		//super(new DefaultUdpTransportMapping(new UdpAddress("0.0.0.0/162")));
 		super(new DefaultUdpTransportMapping());
 		
 		System.out.println("SNMP manager start.");
@@ -110,37 +103,6 @@ public class SNMPAgent extends Snmp implements Closeable {
 		topTable = new TopTable<>(Resource.class);
 		
 		timer = new Timer();
-		
-		timer.schedule(new TimerTask() {
-			private Long [] queue = new Long[QUEUE_SIZE];
-			private Map<Long, Long> map = new HashMap<>();
-			private Calendar c;
-			private int position = 0;
-			
-			@Override
-			public void run() {
-				long key;
-				
-				c = Calendar.getInstance();
-				
-				c.set(Calendar.MINUTE, 0);
-				c.set(Calendar.SECOND, 0);
-				c.set(Calendar.MILLISECOND, 0);
-				
-				key = c.getTimeInMillis();
-				
-				if (this.map.put(key, calcLoad()) == null) {
-					if (this.queue[this.position] != null) {
-						this.map.remove(this.queue[this.position]);
-					}
-					
-					this.queue[this.position++] = key;
-					
-					this.position %= QUEUE_SIZE;
-					
-					load = new JSONObject(this.map);
-				}
-			}}, 10 *60 *1000, 10 *60 *1000);
 		 
 		nodeRoot = new File(root, "node");
 		nodeRoot.mkdir();
@@ -208,6 +170,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 		pdu.add(new VariableBinding(RequestOID.ifAlias));
 		pdu.add(new VariableBinding(RequestOID.hrSystemUptime));
 		pdu.add(new VariableBinding(RequestOID.hrProcessorLoad));
+		pdu.add(new VariableBinding(RequestOID.hrSWRunName));
 		pdu.add(new VariableBinding(RequestOID.hrStorageType));
 		pdu.add(new VariableBinding(RequestOID.hrStorageDescr));
 		pdu.add(new VariableBinding(RequestOID.hrStorageAllocationUnits));
@@ -471,73 +434,37 @@ public class SNMPAgent extends Snmp implements Closeable {
 	public JSONObject getTop(int count) {
 		return this.topTable.getTop(count);		
 	}
-	/*
-	public String getPeerIFName(String ip, String peerIP) {
-		SNMPNode node = this.nodeList.get(ip);
-		SNMPNode peerNode = this.nodeList.get(peerIP);
-		
-		if (node == null || peerNode == null) {
-			return "";
-		}
-		
-		return peerNode.getPeerIFName(node);
-	}
-	*/
-	public void clean(final int day) {
-		if (this.cleaner != null) {
-			this.cleaner.interrupt();
-		}
+	
+	public void clean() {
+		int day = Agent.config.getInt("clean");
 		
 		if (day <= 0) {
-			this.cleaner = null;
-			
-			Agent.log(String.format("데이터 정리 해제."));
-			
 			return;
 		}
 		
-		Agent.log(String.format("데이터 보관 주기 설정 : %d 일.", day));
 		
-		this.cleaner = new Thread(new Runnable() {
+		Calendar date = Calendar.getInstance();
+					
+		date.set(Calendar.HOUR_OF_DAY, 0);
+		date.set(Calendar.MINUTE, 0);
+		date.set(Calendar.SECOND, 0);
+		date.set(Calendar.MILLISECOND, 0);
+		
+		date.add(Calendar.DATE, -1* day);
+		
+		new DataCleaner(nodeRoot, date.getTimeInMillis(), 3) {
 
 			@Override
-			public void run() {
-				while (!Thread.interrupted()) {
-					Calendar date = Calendar.getInstance();
-					
-					date.set(Calendar.HOUR_OF_DAY, 0);
-					date.set(Calendar.MINUTE, 0);
-					date.set(Calendar.SECOND, 0);
-					date.set(Calendar.MILLISECOND, 0);
-					
-					date.add(Calendar.DATE, -1* day);
-							
-					new DataCleaner(nodeRoot, date.getTimeInMillis(), 3) {
-	
-						@Override
-						public void onDelete(File file) {
-						}
-						
-						@Override
-						public void onComplete(long count) {
-							if (count > 0) {
-								Agent.log(String.format("데이터 정리 %d 건 완료.", count));
-							}
-						}
-					};
-					
-					try {
-						Thread.sleep(1000 *60 *60 *24);
-					} catch (InterruptedException e) {
-						break;
-					}
-				}
+			public void onDelete(File file) {
 			}
 			
-		});
-		
-		this.cleaner.setDaemon(true);
-		this.cleaner.start();
+			@Override
+			public void onComplete(long count) {
+				if (count > 0) {
+					Agent.log(String.format("데이터 정리 %d 건 완료.", count));
+				}
+			}
+		};
 	}
 	
 	public JSONObject getFailureRate(String ip) {
@@ -592,7 +519,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 	/**
 	 * ICMP 요청에 대한 응답
 	 */
-	private void onSuccess(String ip) {//System.out.println("success"+ ip);
+	private void onSuccess(String ip) {
 		SNMPNode node = this.nodeList.get(ip);
 		
 		// 그 사이 삭제되었으면
@@ -710,6 +637,10 @@ public class SNMPAgent extends Snmp implements Closeable {
 	}
 	
 	private void sendNextRequest(final SNMPNode node) {
+		if (this.isClosed) {
+			return;
+		}
+		
 		this.timer.schedule(
 			new TimerTask() {
 
@@ -760,11 +691,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 		return this.enterprise.execute(request, data);
 	}
 	
-	public JSONObject getLoad() {
-		return this.load;
-	}
-	
-	private final long calcLoad() {
+	public final long calcLoad() {
 		BigInteger bi = BigInteger.valueOf(0);
 		long size = 0;
 		
@@ -792,13 +719,23 @@ public class SNMPAgent extends Snmp implements Closeable {
 	 */
 	@Override
 	public void close() {
-		this.timer.cancel();
+		this.isClosed = true;
 		
 		try {
 			super.close();
 		} catch (IOException ioe) {
 			Agent.log(Util.EToString(ioe));
 		}
+		
+		for (SNMPNode node: this.nodeList.values()) {
+			try {
+				node.close();
+			} catch (IOException ioe) {
+				Agent.log(Util.EToString(ioe));
+			}
+		}
+		
+		this.timer.cancel();
 		
 		System.out.format("SNMP manager stop.\n");
 	}

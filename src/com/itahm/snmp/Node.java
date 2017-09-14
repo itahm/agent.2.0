@@ -1,5 +1,6 @@
 package com.itahm.snmp;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 import java.net.InetAddress;
@@ -35,7 +36,7 @@ import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.Variable;
 import org.snmp4j.smi.VariableBinding;
 
-public abstract class Node extends Thread {
+public abstract class Node implements Runnable, Closeable {
 	
 	private final static int MAX_REQUEST = 100;
 	private final static int CISCO = 9;
@@ -48,7 +49,7 @@ public abstract class Node extends Thread {
 	private PDU nextPDU;
 	private final Snmp snmp;
 	private final InetAddress ip;
-	
+	private final Thread thread;
 	private Target target;
 	private Integer enterprise;
 	private long failureCount = 0;
@@ -69,12 +70,16 @@ public abstract class Node extends Thread {
 	protected final Map<String, Integer> hrProcessorEntry = new HashMap<>();
 	protected final Map<String, JSONObject> hrStorageEntry = new HashMap<>();
 	protected final Map<String, JSONObject> ifEntry = new HashMap<>();
+	protected final Map<String, String> hrSWRunName = new HashMap<>();
 	
 	public Node(Snmp snmp, String ip, int timeout) throws IOException {
 		this.snmp = snmp;
 		this.ip = InetAddress.getByName(ip);
 		
-		start();
+		thread = new Thread(this);
+		
+		thread.setName("ITAhM SNMP Node "+ ip);
+		thread.start();
 	}
 	
 	private static long ping(InetAddress ip) throws IOException {
@@ -90,11 +95,22 @@ public abstract class Node extends Thread {
 	}
 	
 	@Override
+	public void close() throws IOException {
+		this.thread.interrupt();
+		
+		try {
+			this.thread.join();
+		} catch (InterruptedException ie) {
+			throw new IOException (ie);
+		}
+	}
+	
+	@Override
 	public void run() {
 		PDU pdu;
 		long rt;
 		
-		while (!Thread.interrupted()) {
+		while (!this.thread.isInterrupted()) {
 			try {
 				pdu = this.bq.take();
 				
@@ -116,8 +132,6 @@ public abstract class Node extends Thread {
 				
 				parseResponse(this.snmp.send(pdu, this.target));
 			} catch (InterruptedException ie) {
-				ie.printStackTrace();
-				
 				break;
 			} catch (IOException ioe) {
 				onException(ioe);
@@ -188,6 +202,7 @@ public abstract class Node extends Thread {
 		hrProcessorEntry.clear();
 		hrStorageEntry.clear();
 		ifEntry.clear();
+		hrSWRunName.clear();
 		
 		this.pdu.setRequestID(new Integer32(0));
 		
@@ -339,6 +354,9 @@ public abstract class Node extends Thread {
 		
 		if (request.startsWith(RequestOID.hrProcessorLoad) && response.startsWith(RequestOID.hrProcessorLoad)) {
 			this.hrProcessorEntry.put(index, ((Integer32)variable).getValue());
+		}
+		else if (request.startsWith(RequestOID.hrSWRunName) && response.startsWith(RequestOID.hrSWRunName)) {
+			this.hrSWRunName.put(index, new String(((OctetString)variable).getValue()));
 		}
 		else if (request.startsWith(RequestOID.hrStorageEntry) && response.startsWith(RequestOID.hrStorageEntry)) {
 			JSONObject storageData = this.hrStorageEntry.get(index);
@@ -535,6 +553,7 @@ public abstract class Node extends Thread {
 			this.data.put("hrProcessorEntry", this.hrProcessorEntry);
 			this.data.put("hrStorageEntry", this.hrStorageEntry);
 			this.data.put("ifEntry", this.ifEntry);
+			this.data.put("hrSWRunName", this.hrSWRunName);
 		}
 	}
 	

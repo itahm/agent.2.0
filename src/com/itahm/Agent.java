@@ -44,6 +44,7 @@ public class Agent implements ITAhMAgent {
 	
 	private static Map<String, Table> tableMap = new HashMap<>();
 	
+	public static boolean isDemo = false;
 	public static Log log;
 	public static GCMManager gcmm = null;
 	public static SNMPAgent snmp;
@@ -89,21 +90,9 @@ public class Agent implements ITAhMAgent {
 				}
 			}
 			
-			if (!config.has("interval")) {
-				config.put("interval", 1);
-			}
-			
 			log = new Log(dataRoot);
 			snmp = new SNMPAgent(dataRoot);
 			icmp = new ICMPAgent();
-			
-			if (config.has("clean")) {
-				int clean = config.getInt("clean");
-				
-				if (clean > 0) {
-					snmp.clean(clean);
-				}
-			}
 			
 			batch.start(root);
 			
@@ -135,10 +124,11 @@ public class Agent implements ITAhMAgent {
 	public static JSONObject getInformation(JSONObject json) {
 		return json.put("space", root == null? 0: root.getUsableSpace())
 			.put("version", VERSION)
-			.put("load", snmp.getLoad())
+			.put("load", batch.load)
 			.put("resource", snmp.getResourceCount())
-			.put("usage", Batch.lastDiskUsage)
-			.put("java", System.getProperty("java.version"));
+			.put("usage", batch.lastDiskUsage)
+			.put("java", System.getProperty("java.version"))
+			.put("expire", ITAhM.expire);
 	}
 	
 	private Session signIn(JSONObject data) {

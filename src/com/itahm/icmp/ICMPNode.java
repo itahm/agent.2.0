@@ -7,10 +7,11 @@ import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class ICMPNode extends Thread implements Closeable {
+public class ICMPNode implements Runnable, Closeable {
 
 	private final ICMPListener listener;
 	private final InetAddress target;
+	private final Thread thread;
 	private final int [] timeouts;
 	private final int retry;
 	private final BlockingQueue<Long> bq = new LinkedBlockingQueue<>();
@@ -25,15 +26,18 @@ public class ICMPNode extends Thread implements Closeable {
 		target = InetAddress.getByName(ip);
 		retry = timeouts.length;
 		
-		//setDaemon(true);
-		start();
+		thread = new Thread(this);
+		
+		thread.setName("ITAhM ICMPNode "+ ip);
+		
+		thread.start();
 	}
 	
 	@Override
 	public void run() {
-		long sent, delay;
+		long delay, sent;
 		
-		init: while (!isInterrupted()) {
+		init: while (!Thread.interrupted()) {
 			try {
 				try {
 					delay = bq.take();
@@ -41,11 +45,14 @@ public class ICMPNode extends Thread implements Closeable {
 					if (delay > 0) {
 						Thread.sleep(delay);
 					}
+					else if (delay < 0) {
+						throw new InterruptedException();
+					}
 					
 					sent = System.currentTimeMillis();
 					
 					for (int i=0; i < retry; i++) {
-						if (isInterrupted()) {
+						if (Thread.interrupted()) {
 							throw new InterruptedException();
 						}
 						
@@ -80,11 +87,13 @@ public class ICMPNode extends Thread implements Closeable {
 
 	@Override
 	public void close() throws IOException {
-		interrupt();
+		this.thread.interrupt();
 		
 		try {
-			join();
-		} catch (InterruptedException e) {
+			this.bq.put(-1L);
+			
+			this.thread.join();
+		} catch (InterruptedException ie) {
 		}
 	}
 	

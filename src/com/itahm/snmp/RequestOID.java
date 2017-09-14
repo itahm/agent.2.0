@@ -86,6 +86,7 @@ public class RequestOID {
 	 */
 	//iso(1).org(3).dod(6).internet(1).mgmt(2).mib_2(1).host(25)
 	public final static OID host = new OID(new int [] {1,3,6,1,2,1,25});
+	
 	public final static OID hrSystemUptime = new OID(new int [] {1,3,6,1,2,1,25,1,1});
 	
 	public final static OID hrStorageTypes = new OID(new int [] {1,3,6,1,2,1,25,2,1});
@@ -98,6 +99,8 @@ public class RequestOID {
 	public final static OID hrStorageUsed = new OID(new int [] {1,3,6,1,2,1,25,2,3,1,6});
 	
 	public final static OID hrProcessorLoad = new OID(new int [] {1,3,6,1,2,1,25,3,3,1,2});
+	
+	public final static OID hrSWRunName = new OID(new int [] {1,3,6,1,2,1,25,4,2,1,2});
 	
 	//iso(1).org(3).dod(6).internet(1).mgmt(2).mib_2(1).ifMib(31)
 	public final static OID ifMib = new OID(new int [] {1,3,6,1,2,1,31});
