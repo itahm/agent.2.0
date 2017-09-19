@@ -38,6 +38,10 @@ public class DailyFile {
 		return roll;
 	}
 	
+	public long size() {
+		return this.file.length();
+	}
+	
 	public byte [] read() throws IOException {
 		return Files.readAllBytes(this.file.toPath());
 	}

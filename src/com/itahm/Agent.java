@@ -49,7 +49,7 @@ public class Agent implements ITAhMAgent {
 	public static GCMManager gcmm = null;
 	public static SNMPAgent snmp;
 	public static ICMPAgent icmp;
-	public static Enterprise enterprise = Enterprise.getInstance();
+	public static Enterprise enterprise = new Enterprise();
 	public static JSONObject config;
 	private final static Batch batch = new Batch();
 	private static File root;
@@ -107,6 +107,10 @@ public class Agent implements ITAhMAgent {
 		stop();
 		
 		return false;
+	}
+	
+	public static File getRoot() {
+		return root;
 	}
 	
 	public static void log(String msg) {

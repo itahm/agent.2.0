@@ -25,19 +25,7 @@ public class ITAhM extends Listener implements Closeable {
 	private final static long DAY1 = 24 *60 *60 *1000;
 	private final static String DATA = "data";
 	public static long expire = 1507906800000L;
-	/*
-	{
-		Calendar c = Calendar.getInstance();
-		
-		c.set(Calendar.HOUR_OF_DAY, 0);
-		c.set(Calendar.MINUTE, 0);
-		c.set(Calendar.SECOND, 0);
-		c.set(Calendar.MILLISECOND, 0);
-		c.set(Calendar.MONTH, c.get(Calendar.MONTH) +1);
-		
-		System.out.println(c.getTimeInMillis());
-	}
-	*/
+	
 	private final Timer timer = new Timer();
 	
 	enum Options {

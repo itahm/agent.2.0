@@ -11,6 +11,7 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Calendar;
+import java.util.Date;
 
 import com.itahm.json.JSONException;
 import com.itahm.json.JSONObject;
@@ -57,6 +58,20 @@ public class Util {
 		return c;
 	}
 
+	public static String toDateString(Date date) {
+		Calendar c = Calendar.getInstance();
+		
+		c.setTime(date);
+		
+		return String.format("%04d-%02d-%02d %02d:%02d:%02d"
+			, c.get(Calendar.YEAR)
+			, c.get(Calendar.MONTH +1)
+			, c.get(Calendar.DAY_OF_MONTH)
+			, c.get(Calendar.HOUR_OF_DAY)
+			, c.get(Calendar.MINUTE)
+			, c.get(Calendar.SECOND));
+	}
+	
 	/**
 	 * 
 	 * @param file

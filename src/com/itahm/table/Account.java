@@ -16,7 +16,7 @@ public class Account extends Table {
 			getJSONObject()
 				.put("root", new JSONObject()
 					.put("username", "root")
-					.put("password", "root")
+					.put("password", "63a9f0ea7bb98050796b649e85481845")
 					.put("level", 0));
 		
 			super.save();
