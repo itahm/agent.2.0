@@ -29,7 +29,13 @@ public class TestNode extends TmpNode {
 	
 		if (deviceTable.getJSONObject(super.ip) == null) {
 			try {
-				deviceTable.put(super.ip, new JSONObject());
+				deviceTable.put(super.ip
+					, new JSONObject()
+						.put("ip", super.ip)
+						.put("name", "")
+						.put("type", "unknown")
+						.put("label", "")
+						.put("ifSpeed", new JSONObject()));
 			} catch (IOException ioe) {
 				Agent.log(Util.EToString(ioe));
 			}

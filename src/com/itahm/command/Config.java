@@ -16,34 +16,40 @@ public class Config implements Command {
 	@Override
 	public Response execute(Request request, JSONObject data) throws IOException {
 		try {
-			switch(data.getString("key")) {
+			String key = data.getString("key");
+			
+			switch(key) {
 			case "clean":
 				int clean = data.getInt("value");
 				
-				Agent.config.put("clean", clean);
+				Agent.config.put(key, clean);
 				
 				Agent.snmp.clean();
 				
 				break;
 			
 			case "dashboard":
-				Agent.config.put("dashboard", data.getJSONObject("value"));
+				Agent.config.put(key, data.getJSONObject("value"));
 				
 				break;
 			case "display":
-				Agent.config.put("display", data.getString("value"));
+				Agent.config.put(key, data.getString("value"));
 				
 				break;
 			case "sms":
-				Agent.config.put("sms", data.getBoolean("value"));
+				Agent.config.put(key, data.getBoolean("value"));
 				
 				break;
 			case "interval":
-				Agent.config.put("interval", data.getInt("value"));
+				Agent.config.put(key, data.getInt("value"));
+				
+				break;
+			case "menu":
+				Agent.config.put(key, data.getBoolean("value"));
 				
 				break;
 			case "top":
-				Agent.config.put("top", data.getInt("value"));
+				Agent.config.put(key, data.getInt("value"));
 				
 				break;
 			case "gcm":
@@ -68,8 +74,7 @@ public class Config implements Command {
 				
 				break;
 			default:
-				return Response.getInstance(Response.Status.BADREQUEST,
-					new JSONObject().put("error", "invalid config parameter").toString());
+				Agent.config.put(key, data.getString("value"));
 			}
 			
 			Agent.getTable(Table.CONFIG).save();

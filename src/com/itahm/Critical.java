@@ -35,11 +35,6 @@ abstract public class Critical {
 	
 	public Critical(JSONObject criticData) {
 		JSONObject list;
-		
-		for (Resource resource: Resource.values()) {
-			mapping.put(resource, new HashMap<String, Data>());
-		}
-		
 		Resource resource;
 		Map<String, Data> rscData;
 		
@@ -81,9 +76,8 @@ abstract public class Critical {
 		Data data = rscData.get(index);
 		
 		if (data == null) {
-			if (resource.equals(Resource.PROCESSOR)) {
-				data = rscData.get("0").clone();
-				rscData.put(index, data);
+			if (resource.equals(Resource.PROCESSOR) && rscData.get("0") != null) {
+				rscData.put(index, data = rscData.get("0").clone());
 			}
 			else {
 				return;

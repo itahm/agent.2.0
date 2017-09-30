@@ -132,7 +132,8 @@ public class Agent implements ITAhMAgent {
 			.put("resource", snmp.getResourceCount())
 			.put("usage", batch.lastDiskUsage)
 			.put("java", System.getProperty("java.version"))
-			.put("expire", ITAhM.expire);
+			.put("expire", ITAhM.expire)
+			.put("demo", isDemo);
 	}
 	
 	private Session signIn(JSONObject data) {

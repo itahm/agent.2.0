@@ -42,28 +42,11 @@ public class Device extends Table {
 			Table posTable = Agent.getTable(Table.POSITION);
 			
 			if (posTable.getJSONObject(ip) == null) {
-				posTable.put(ip, new JSONObject().put("x", 0).put("y", 0).put("ifEntry", new JSONObject()));
+				posTable.put(ip, new JSONObject()
+					.put("x", 0)
+					.put("y", 0)
+					.put("ifEntry", new JSONObject()));
 			}
-			/*
-			if (device.has("ip")) {
-				if (!device.has("name")) {
-					device.put("name", "");
-				}
-			
-				if (!device.has("type")) {
-					device.put("type", "unknown");
-				}
-				
-				if (!device.has("ifSpeed")) {
-					device.put("ifSpeed", new JSONObject());
-				}
-			}
-			// ip를 가지지 않은 것은 group
-			else {
-				if (!device.has("name")) {
-					device.put("name", ip);
-				}
-			}*/
 		}
 		
 		return super.put(ip, device);

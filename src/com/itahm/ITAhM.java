@@ -24,8 +24,7 @@ public class ITAhM extends Listener implements Closeable {
 	
 	private final static long DAY1 = 24 *60 *60 *1000;
 	private final static String DATA = "data";
-	public static long expire = 1507906800000L;
-	
+	public static long expire = 0;
 	private final Timer timer = new Timer();
 	
 	enum Options {
