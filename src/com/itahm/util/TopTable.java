@@ -12,8 +12,8 @@ import com.itahm.json.JSONObject;
 public class TopTable <E extends Enum<E>> implements Comparator<String> {
 	
 	private final Class<E> e;
-	private final Map<E, HashMap<String, Long>> map;
-	private Map<String, Long> sortTop;
+	private final Map<E, HashMap<String, Value>> map;
+	private Map<String, Value> sortTop;
 	
 	public TopTable(Class<E> e) {
 		this.e = e;
@@ -21,11 +21,11 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
 		map = new HashMap<>();
 		
 		for (E key : e.getEnumConstants()) {
-			map.put(key, new HashMap<String, Long>());
+			map.put(key, new HashMap<String, Value>());
 		}
 	}
 	
-	public synchronized void submit(String ip, E resource, long value) {
+	public synchronized void submit(String ip, E resource, Value value) {
 		this.map.get(resource).put(ip, value);
 	}
 	
@@ -39,8 +39,8 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
 		return top;
 	}
 	
-	private Map<String, Long> getTop(HashMap<String, Long> sortTop, int count) {
-		Map<String, Long > top = new HashMap<String, Long>();
+	private JSONObject getTop(HashMap<String, Value> sortTop, int count) {
+		JSONObject top = new JSONObject();
 		List<String> list = new ArrayList<String>();
 		String ip;
 		
@@ -51,10 +51,11 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
         Collections.sort(list, this);
         
         count = Math.min(list.size(), count);
+        
         for (int i=0; i< count; i++) {
         	ip = list.get(i);
         	
-        	top.put(ip, this.sortTop.get(ip));
+        	top.put(ip, sortTop.get(ip).toJSONObject());
         }
         
         return top;
@@ -68,10 +69,35 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
 	
 	@Override
 	public int compare(String ip1, String ip2) {
-		Long value1 = this.sortTop.get(ip1);
-        Long value2 = this.sortTop.get(ip2);
+		long l = this.sortTop.get(ip1).getValue() - this.sortTop.get(ip2).getValue();
          
-        return value2.compareTo(value1);
+        return l > 0? 1: l < 0? -1: 0;
 	}
 	
+	public final static class Value {
+		private final long value;
+		private final long rate;
+		private final long index;
+		
+		public Value(long v, long r, String i) {
+			value = v;
+			rate = r;
+			index = Long.parseLong(i);
+		}
+		
+		public long getValue() {
+			return this.value;
+		}
+		
+		public long getRate() {
+			return this.rate;
+		}
+		
+		public JSONObject toJSONObject() {
+			return new JSONObject()
+				.put("value", this.value)
+				.put("rate", this.rate)
+				.put("index", this.index);
+		}
+	}
 }

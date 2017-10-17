@@ -15,6 +15,7 @@ import com.itahm.json.JSONObject;
 import com.itahm.json.RollingFile;
 import com.itahm.snmp.Node;
 import com.itahm.table.Table;
+import com.itahm.util.TopTable;
 import com.itahm.util.Util;
 
 public class SNMPNode extends Node {
@@ -49,7 +50,7 @@ public class SNMPNode extends Node {
 	private final Map<Rolling, HashMap<String, RollingFile>> rollingMap = new HashMap<Rolling, HashMap<String, RollingFile>>();
 	private String ip;
 	private SNMPAgent agent;
-	private long lastRolling = 0;
+	private long lastRolling = -1;
 	private Critical critical;
 	
 	public static SNMPNode getInstance(SNMPAgent agent, String ip, int udp, String user, int level, JSONObject criticalCondition) throws IOException {
@@ -149,13 +150,12 @@ public class SNMPNode extends Node {
 	private void parseResponseTime() throws IOException {
 		putData(Rolling.RESPONSETIME, "0", super.responseTime);
 		
-		this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.RESPONSETIME, super.responseTime);
+		this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.RESPONSETIME, new TopTable.Value(responseTime, -1, "0"));
 	}
 	
 	private void parseProcessor() throws IOException {
-		long max = 0;
+		TopTable.Value max = null;
 		long value;
-		boolean submit = false;
 		
 		for(String index: super.hrProcessorEntry.keySet()) {
 			value = super.hrProcessorEntry.get(index);
@@ -166,25 +166,24 @@ public class SNMPNode extends Node {
 				this.critical.analyze(Critical.Resource.PROCESSOR, index, 100, value);
 			}
 			
-			max = Math.max(max, value);
-			
-			submit = true;
+			if (max == null || max.getValue() < value) {
+				max = new TopTable.Value(value, value, index);
+			}
 		}
 	
-		if (submit) {
+		if (max != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.PROCESSOR, max);
 		}
 	}
 	
 	private void parseStorage() throws IOException {
 		JSONObject data;
-		long max = 0;
-		long maxRate = 0;
+		TopTable.Value max = null;
+		TopTable.Value maxRate = null;
 		long value;
 		long capacity;
 		long tmpValue;
 		int type;
-		boolean submit = false;
 		
 		for(String index: super.hrStorageEntry.keySet()) {
 			data = super.hrStorageEntry.get(index);
@@ -208,28 +207,36 @@ public class SNMPNode extends Node {
 			
 			switch(type) {
 			case 2:
+				// 물리적 memory는하나뿐이므로 한번에 끝나고 
 				if (this.critical != null) {
 					this.critical.analyze(Critical.Resource.MEMORY, index, capacity, tmpValue);
 				}
 				
-				this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.MEMORY, value);
-				this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.MEMORYRATE, tmpValue *100L / capacity);
+				this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.MEMORY, new TopTable.Value(value, tmpValue *100 / capacity, index));
+				this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.MEMORYRATE, new TopTable.Value(value, tmpValue *100 / capacity, index));
 				
 				break;
 			case 4:
+				// 스토리지는 여러 볼륨중 가장 높은값을 submit
 				if (this.critical != null) {
 					this.critical.analyze(Critical.Resource.STORAGE, index, capacity, tmpValue);
 				}
 				
-				max = Math.max(max, value);
-				maxRate = Math.max(maxRate, tmpValue *100L / capacity);
+				if (max == null || max.getValue() < value) {
+					max = new TopTable.Value(value, tmpValue *100L / capacity, index);
+				}
 				
-				submit = true;
+				if (maxRate == null || maxRate.getRate() < (tmpValue *100L / capacity)) {
+					maxRate = new TopTable.Value(value, tmpValue *100L / capacity, index);
+				}
 			}
 		}
 		
-		if (submit) {
+		if (max != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.STORAGE, max);
+		}
+		
+		if (maxRate != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.STORAGERATE, maxRate);
 		}
 	}
@@ -241,13 +248,15 @@ public class SNMPNode extends Node {
 			return;
 		}
 		
-		JSONObject ifSpeed = device.has("ifSpeed")? device.getJSONObject("ifSpeed"): null,
+		JSONObject
+			ifSpeed = device.has("ifSpeed")? device.getJSONObject("ifSpeed"): null,
 			data, oldData;
-		long value, capacity, bytes;
-		long max = 0;
-		long maxRate = 0;
-		long maxErr = 0;
-		boolean submit = false;
+		long value,
+			capacity;
+		TopTable.Value
+			max = null,
+			maxRate = null,
+			maxErr = null;
 		
 		for(String index: super.ifEntry.keySet()) {
 			// 특정 index가 새로 생성되었다면 보관된 값이 없을수도 있음.
@@ -288,7 +297,9 @@ public class SNMPNode extends Node {
 				
 					putData(Rolling.IFINERRORS, index, value);
 					
-					maxErr = Math.max(maxErr, value);
+					if (maxErr == null || maxErr.getValue() < value) {
+						maxErr = new TopTable.Value(value, -1, index);
+					}
 				}
 			}
 			
@@ -302,83 +313,82 @@ public class SNMPNode extends Node {
 					
 					putData(Rolling.IFOUTERRORS, index, value);
 					
-					maxErr = Math.max(maxErr, value);
+					if (maxErr == null || maxErr.getValue() < value) {
+						maxErr = new TopTable.Value(value, -1, index);
+					}
 				}
 			}
 			
-			bytes = -1;
+			value = -1;
 			
 			if (data.has("ifHCInOctets") && oldData.has("ifHCInOctets")) {
-				bytes = data.getLong("ifHCInOctets") - oldData.getLong("ifHCInOctets");
+				value = data.getLong("ifHCInOctets") - oldData.getLong("ifHCInOctets");
 			}
 			
 			if (data.has("ifInOctets") && oldData.has("ifInOctets")) {
-				bytes = Math.max(bytes, data.getLong("ifInOctets") - oldData.getLong("ifInOctets"));
+				value = Math.max(value, data.getLong("ifInOctets") - oldData.getLong("ifInOctets"));
 			}
 			
-			if (bytes  >= 0) {
-				bytes = bytes *8000 / (super.lastResponse - this.lastRolling);
+			if (value  >= 0) {
+				value = value *8000 / (super.lastResponse - this.lastRolling);
 				
-				data.put("ifInBPS", bytes);
+				data.put("ifInBPS", value);
 				
-				putData(Rolling.IFINOCTETS, index, bytes);
+				putData(Rolling.IFINOCTETS, index, value);
 				
-				max = Math.max(max, bytes);
-				maxRate = Math.max(maxRate, bytes *100L / capacity);
+				if (max == null || max.getValue() < value) {
+					max = new TopTable.Value(value, value*100L / capacity, index);
+				}
+				
+				if (maxRate == null || maxRate.getRate() < value*100L / capacity) {
+					maxRate = new TopTable.Value(value, value*100L / capacity, index);
+				}
 			}
 			
-			bytes = -1;
+			value = -1;
 			
 			if (data.has("ifHCOutOctets") && oldData.has("ifHCOutOctets")) {
-				bytes = data.getLong("ifHCOutOctets") - oldData.getLong("ifHCOutOctets");
+				value = data.getLong("ifHCOutOctets") - oldData.getLong("ifHCOutOctets");
 			}
 			
 			if (data.has("ifOutOctets") && oldData.has("ifOutOctets")) {
-				bytes = Math.max(bytes, data.getLong("ifOutOctets") - oldData.getLong("ifOutOctets"));
-			}
-			else {
-				continue;
+				value = Math.max(value, data.getLong("ifOutOctets") - oldData.getLong("ifOutOctets"));
 			}
 			
-			if (bytes >= 0) {
-				bytes = bytes *8000 / (super.lastResponse - this.lastRolling);
+			if (value >= 0) {
+				value = value *8000 / (super.lastResponse - this.lastRolling);
 				
-				data.put("ifOutBPS", bytes);
+				data.put("ifOutBPS", value);
 				
-				putData(Rolling.IFOUTOCTETS, index, bytes);
+				putData(Rolling.IFOUTOCTETS, index, value);
 				
-				max = Math.max(max, bytes);
-				maxRate = Math.max(maxRate, bytes *100L / capacity);
+				if (max == null || max.getValue() < value) {
+					max = new TopTable.Value(value, value*100L / capacity, index);
+				}
+				
+				if (maxRate == null || maxRate.getRate() < value*100L / capacity) {
+					maxRate = new TopTable.Value(value, value*100L / capacity, index);
+				}
 			}
 			
 			if (this.critical != null) {
-				this.critical.analyze(Critical.Resource.THROUGHPUT, index, capacity, max);
+				this.critical.analyze(Critical.Resource.THROUGHPUT, index, capacity, max.getValue());
 			}
-			
-			submit = true;
 		}
 		
-		if (submit) {
+		if (max != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.THROUGHPUT, max);
+		}
+		
+		if (maxRate != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.THROUGHPUTRATE, maxRate);
+		}
+		
+		if (maxErr != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.THROUGHPUTERR, maxErr);
 		}
-	}
-	
-	private void processSuccess() throws IOException {		
-		//parseNetwork();
 		
-		//parseARP();
-	
-		parseResponseTime();
-		
-		parseProcessor();
-		
-		parseStorage();
-		
-		if (super.data.has("ifEntry")) {
-			parseInterface(super.data.getJSONObject("ifEntry"));
-		}		
+		this.lastRolling = super.lastResponse;
 	}
 	
 	public void parseTrap(OID trap, Variable variable) {
@@ -423,17 +433,23 @@ public class SNMPNode extends Node {
 	protected void onResponse(boolean success) {
 		if (success) {
 			try {
-				processSuccess();
+				parseResponseTime();
+				
+				parseProcessor();
+				
+				parseStorage();
+				
+				if (super.data.has("ifEntry")) {
+					parseInterface(super.data.getJSONObject("ifEntry"));
+				}
 			} catch (IOException ioe) {
 				Agent.log(Util.EToString(ioe));
 			}
-			
-			this.lastRolling = super.lastResponse;
 		}
 		
 		this.agent.onResponse(this.ip, success);
 		
-		this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.FAILURERATE, getFailureRate());
+		this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.FAILURERATE, new TopTable.Value(this.getFailureRate(), this.getFailureRate(), "-1"));
 	}
 
 	@Override

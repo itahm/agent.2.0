@@ -628,7 +628,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 		
 	}
 	
-	public void onSubmitTop(String ip, Resource resource, long value) {
+	public void onSubmitTop(String ip, Resource resource, TopTable.Value value) {
 		if (!this.nodeList.containsKey(ip)) {
 			return;
 		}
