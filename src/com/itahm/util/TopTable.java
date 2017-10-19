@@ -76,20 +76,22 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
 	
 	@Override
 	public int compare(String ip1, String ip2) {
+		Value v1 = this.sortTop.get(ip1),
+			v2 = this.sortTop.get(ip2);
 		long l;
 		
 		if (this.sortByRate) {
-			l = this.sortTop.get(ip1).getRate() - this.sortTop.get(ip2).getRate();
+			l = v2.getRate() - v1.getRate();
 			
 			if (l == 0) {
-				l = this.sortTop.get(ip1).getValue() - this.sortTop.get(ip2).getValue();
+				l = v2.getValue() - v1.getValue();
 			}
 		}
 		else {
-			l = this.sortTop.get(ip1).getValue() - this.sortTop.get(ip2).getValue();
+			l = v2.getValue() - v1.getValue();
 			
 			if (l == 0) {
-				l = this.sortTop.get(ip1).getRate() - this.sortTop.get(ip2).getRate();
+				l = v2.getRate() - v1.getRate();
 			}
 		}
 		
