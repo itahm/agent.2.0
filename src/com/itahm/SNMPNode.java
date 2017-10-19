@@ -50,7 +50,6 @@ public class SNMPNode extends Node {
 	private final Map<Rolling, HashMap<String, RollingFile>> rollingMap = new HashMap<Rolling, HashMap<String, RollingFile>>();
 	private String ip;
 	private SNMPAgent agent;
-	private long lastRolling = -1;
 	private Critical critical;
 	
 	public static SNMPNode getInstance(SNMPAgent agent, String ip, int udp, String user, int level, JSONObject criticalCondition) throws IOException {
@@ -252,7 +251,9 @@ public class SNMPNode extends Node {
 			ifSpeed = device.has("ifSpeed")? device.getJSONObject("ifSpeed"): null,
 			data, oldData;
 		long value,
-			capacity;
+			rate,
+			capacity,
+			duration;
 		TopTable.Value
 			max = null,
 			maxRate = null,
@@ -269,7 +270,9 @@ public class SNMPNode extends Node {
 			
 			oldData = ifEntry.getJSONObject(index);
 			
-			if (!data.has("ifAdminStatus") || data.getInt("ifAdminStatus") != 1) {
+			if (!oldData.has("timestamp")
+				|| !data.has("ifAdminStatus")
+				|| data.getInt("ifAdminStatus") != 1) {
 				continue;
 			}
 			
@@ -319,6 +322,8 @@ public class SNMPNode extends Node {
 				}
 			}
 			
+			duration = data.getLong("timestamp") - oldData.getLong("timestamp");
+			
 			value = -1;
 			
 			if (data.has("ifHCInOctets") && oldData.has("ifHCInOctets")) {
@@ -330,18 +335,20 @@ public class SNMPNode extends Node {
 			}
 			
 			if (value  >= 0) {
-				value = value *8000 / (super.lastResponse - this.lastRolling);
+				value = value *8000 / duration;
 				
 				data.put("ifInBPS", value);
 				
 				putData(Rolling.IFINOCTETS, index, value);
 				
+				rate = value*100L / capacity;
+				
 				if (max == null || max.getValue() < value) {
-					max = new TopTable.Value(value, value*100L / capacity, index);
+					max = new TopTable.Value(value, rate, index);
 				}
 				
-				if (maxRate == null || maxRate.getRate() < value*100L / capacity) {
-					maxRate = new TopTable.Value(value, value*100L / capacity, index);
+				if (maxRate == null || maxRate.getRate() < rate) {
+					maxRate = new TopTable.Value(value, rate, index);
 				}
 			}
 			
@@ -356,18 +363,20 @@ public class SNMPNode extends Node {
 			}
 			
 			if (value >= 0) {
-				value = value *8000 / (super.lastResponse - this.lastRolling);
+				value = value *8000 / duration;
 				
 				data.put("ifOutBPS", value);
 				
 				putData(Rolling.IFOUTOCTETS, index, value);
 				
+				rate = value*100L / capacity;
+				
 				if (max == null || max.getValue() < value) {
-					max = new TopTable.Value(value, value*100L / capacity, index);
+					max = new TopTable.Value(value, rate, index);
 				}
 				
-				if (maxRate == null || maxRate.getRate() < value*100L / capacity) {
-					maxRate = new TopTable.Value(value, value*100L / capacity, index);
+				if (maxRate == null || maxRate.getRate() < rate) {
+					maxRate = new TopTable.Value(value, rate, index);
 				}
 			}
 			
@@ -387,8 +396,6 @@ public class SNMPNode extends Node {
 		if (maxErr != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.THROUGHPUTERR, maxErr);
 		}
-		
-		this.lastRolling = super.lastResponse;
 	}
 	
 	public void parseTrap(OID trap, Variable variable) {

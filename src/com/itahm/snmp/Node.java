@@ -270,6 +270,7 @@ public abstract class Node implements Runnable, Closeable {
 		}
 		else if (request.startsWith(RequestOID.ifSpeed) && response.startsWith(RequestOID.ifSpeed)) {			
 			ifData.put("ifSpeed", ((Gauge32)variable).getValue());
+			ifData.put("timestamp", Calendar.getInstance().getTimeInMillis());
 		}
 		else if (request.startsWith(RequestOID.ifPhysAddress) && response.startsWith(RequestOID.ifPhysAddress)) {
 			byte [] mac = ((OctetString)variable).getValue();
