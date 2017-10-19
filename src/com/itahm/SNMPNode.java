@@ -343,11 +343,15 @@ public class SNMPNode extends Node {
 				
 				rate = value*100L / capacity;
 				
-				if (max == null || max.getValue() < value) {
+				if (max == null ||
+					max.getValue() < value ||
+					max.getValue() == value && max.getRate() < rate) {
 					max = new TopTable.Value(value, rate, index);
 				}
 				
-				if (maxRate == null || maxRate.getRate() < rate) {
+				if (maxRate == null ||
+					maxRate.getRate() < rate ||
+					maxRate.getRate() == rate && maxRate.getValue() < value) {
 					maxRate = new TopTable.Value(value, rate, index);
 				}
 			}
@@ -371,11 +375,15 @@ public class SNMPNode extends Node {
 				
 				rate = value*100L / capacity;
 				
-				if (max == null || max.getValue() < value) {
+				if (max == null ||
+					max.getValue() < value ||
+					max.getValue() == value && max.getRate() < rate) {
 					max = new TopTable.Value(value, rate, index);
 				}
 				
-				if (maxRate == null || maxRate.getRate() < rate) {
+				if (maxRate == null ||
+					maxRate.getRate() < rate ||
+					maxRate.getRate() == rate && maxRate.getValue() < value) {
 					maxRate = new TopTable.Value(value, rate, index);
 				}
 			}

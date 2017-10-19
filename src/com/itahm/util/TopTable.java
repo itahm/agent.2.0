@@ -14,6 +14,7 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
 	private final Class<E> e;
 	private final Map<E, HashMap<String, Value>> map;
 	private Map<String, Value> sortTop;
+	private boolean sortByRate;
 	
 	public TopTable(Class<E> e) {
 		this.e = e;
@@ -29,22 +30,28 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
 		this.map.get(resource).put(ip, value);
 	}
 	
-	public synchronized JSONObject getTop(final int count) {
+	public synchronized JSONObject getTop(final int count) {try {
 		JSONObject top = new JSONObject();
-		
-		for (E key : e.getEnumConstants()) {
-			top.put(key.toString(), getTop(this.map.get(key), count));
+		String key;
+		for (E resource : e.getEnumConstants()) {
+			key = resource.toString();
+			
+			top.put(key.toString(), getTop(this.map.get(resource), count,
+				"Rate".equals(key.substring(key.length() -4, key.length()))));
 		}
 		
-		return top;
+		return top;}catch(Exception e) {e.printStackTrace(); }
+	
+		return null;
 	}
 	
-	private JSONObject getTop(HashMap<String, Value> sortTop, int count) {
+	private JSONObject getTop(HashMap<String, Value> sortTop, int count, boolean sortByRate) {
 		JSONObject top = new JSONObject();
 		List<String> list = new ArrayList<String>();
 		String ip;
 		
 		this.sortTop = sortTop;
+		this.sortByRate = sortByRate;
 		
         list.addAll(sortTop.keySet());
          
@@ -69,8 +76,23 @@ public class TopTable <E extends Enum<E>> implements Comparator<String> {
 	
 	@Override
 	public int compare(String ip1, String ip2) {
-		long l = this.sortTop.get(ip1).getValue() - this.sortTop.get(ip2).getValue();
-         
+		long l;
+		
+		if (this.sortByRate) {
+			l = this.sortTop.get(ip1).getRate() - this.sortTop.get(ip2).getRate();
+			
+			if (l == 0) {
+				l = this.sortTop.get(ip1).getValue() - this.sortTop.get(ip2).getValue();
+			}
+		}
+		else {
+			l = this.sortTop.get(ip1).getValue() - this.sortTop.get(ip2).getValue();
+			
+			if (l == 0) {
+				l = this.sortTop.get(ip1).getRate() - this.sortTop.get(ip2).getRate();
+			}
+		}
+		
         return l > 0? 1: l < 0? -1: 0;
 	}
 	
