@@ -33,7 +33,7 @@ abstract public class TmpNode implements ResponseListener {
 	protected final String ip;
 	
 	abstract public void onSuccess(String profileName);
-	abstract public void onFailure();
+	abstract public void onFailure(int status);
 	
 	public TmpNode(Snmp agent, String ip, long timeout) {
 		this.agent = agent;
@@ -78,7 +78,7 @@ abstract public class TmpNode implements ResponseListener {
 		PDU pdu;
 		
 		if (target == null) {
-			onFailure();
+			onFailure(-1);
 		}
 		else {
 			if (target instanceof UserTarget) {
@@ -93,7 +93,7 @@ abstract public class TmpNode implements ResponseListener {
 			try {
 				this.agent.send(pdu, target, null, this);
 			} catch (IOException e) {
-				onFailure();
+				onFailure(-1);
 			}
 		}
 	}
@@ -104,12 +104,24 @@ abstract public class TmpNode implements ResponseListener {
 
 		Target target = this.list.pop();
 		
-		if (!(event.getSource() instanceof Snmp.ReportHandler) && event.getResponse() != null && event.getResponse().getErrorStatus() == PDU.noError) {
-			onSuccess(this.profileMap.get(target));
+		if (!(event.getSource() instanceof Snmp.ReportHandler)) {
+			PDU response = event.getResponse();
+			
+			if (response != null) {
+				int status = response.getErrorStatus();
+			
+				if (status == PDU.noError) {
+					onSuccess(this.profileMap.get(target));
+				}
+				else {
+					onFailure(status);
+				}
+				
+				return;
+			}
 		}
-		else {
-			test();
-		}
+		
+		test();
 	}
 	
 	public static void main(String[] args) throws IOException {
@@ -125,7 +137,7 @@ abstract public class TmpNode implements ResponseListener {
 			}
 
 			@Override
-			public void onFailure() {
+			public void onFailure(int status) {
 				System.out.println("falure");
 			}};
 			

@@ -8,7 +8,7 @@ import com.itahm.json.JSONObject;
 public class Position extends Table {
 	
 	public Position(File dataRoot) throws IOException {
-		super(dataRoot, POSITION);
+		super(dataRoot, Name.POSITION);
 	}
 	/*
 	@Override

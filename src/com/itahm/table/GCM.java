@@ -11,7 +11,7 @@ import com.itahm.table.Table;
 public class GCM extends Table {
 
 	public GCM(File dataRoot) throws IOException {
-		super(dataRoot, GCM);
+		super(dataRoot, Name.GCM);
 	}
 	
 	@Override

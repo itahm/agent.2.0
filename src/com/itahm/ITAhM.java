@@ -32,7 +32,7 @@ public class ITAhM extends Listener implements Closeable {
 	}
 	
 	private File root;
-	private final static ITAhMAgent agent = new Agent();
+	public final static ITAhMAgent agent = new Agent();
 	
 	public ITAhM(int tcp, File root, boolean clean) throws Exception {
 		super("0.0.0.0", tcp);
@@ -50,9 +50,7 @@ public class ITAhM extends Listener implements Closeable {
 		File dataRoot = new File(root, DATA);
 		dataRoot.mkdir();
 		
-		if (!agent.start(dataRoot)) {
-			throw new Exception("ITAhM Agent 시작 실패.");
-		}
+		agent.start(dataRoot);
 		
 		this.timer.schedule(new TimerTask() {	
 			
@@ -65,6 +63,8 @@ public class ITAhM extends Listener implements Closeable {
 				}
 			}
 		}, 0, DAY1);
+		
+		System.out.println("ITAhM agent up.");
 	}
 	
 	@Override
@@ -84,15 +84,7 @@ public class ITAhM extends Listener implements Closeable {
 	
 	@Override
 	protected void onException(Exception e) {
-		Agent.log.sysLog(e.getMessage());
-	}
-	
-	public static void testExpire() {
-		if (expire > 0 && Calendar.getInstance().getTimeInMillis() > expire) {
-			System.out.println("License expired.");
-			
-			agent.stop();
-		}
+		agent.set("log", e.getMessage());
 	}
 	
 	public static void sendResponse(Request request, Response response) throws IOException {

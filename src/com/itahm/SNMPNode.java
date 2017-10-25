@@ -241,7 +241,7 @@ public class SNMPNode extends Node {
 	}
 	
 	private void parseInterface(JSONObject ifEntry) throws IOException {
-		JSONObject device = Agent.getTable(Table.DEVICE).getJSONObject(this.ip);
+		JSONObject device = Agent.getTable(Table.Name.DEVICE).getJSONObject(this.ip);
 		
 		if (device == null) {
 			return;
@@ -388,7 +388,7 @@ public class SNMPNode extends Node {
 				}
 			}
 			
-			if (this.critical != null) {
+			if (max != null && this.critical != null) {
 				this.critical.analyze(Critical.Resource.THROUGHPUT, index, capacity, max.getValue());
 			}
 		}

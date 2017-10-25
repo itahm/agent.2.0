@@ -20,7 +20,7 @@ public class ICMPAgent implements ICMPListener, Closeable {
 	private final static int [] TIMEOUTS = new int [] {2000, 3000, 5000};
 	
 	private final Map<String, ICMPNode> nodeList = new HashMap<>();
-	private final Table monitorTable = Agent.getTable(Table.MONITOR);
+	private final Table monitorTable = Agent.getTable(Table.Name.MONITOR);
 	
 	public ICMPAgent() throws IOException {
 		JSONObject snmpData = monitorTable.getJSONObject();

@@ -23,14 +23,11 @@ public class Pull implements Command {
 					new JSONObject().put("error", "database not found").toString());
 			}
 			else {
-				JSONObject json;
+				JSONObject json = table.getJSONObject();
 				String body;
 				
 				if (table instanceof Config) {
-					json = Agent.getInformation(table.getJSONObject());
-				}
-				else {
-					json = table.getJSONObject();
+					Agent.getInformation(json);
 				}
 				
 				synchronized(json) {

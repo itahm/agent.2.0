@@ -24,8 +24,8 @@ public class TestNode extends TmpNode {
 
 	@Override
 	public void onSuccess(String profileName) {
-		Table deviceTable = Agent.getTable(Table.DEVICE);
-		Table monitorTable = Agent.getTable(Table.MONITOR);
+		Table deviceTable = Agent.getTable(Table.Name.DEVICE);
+		Table monitorTable = Agent.getTable(Table.Name.MONITOR);
 	
 		if (deviceTable.getJSONObject(super.ip) == null) {
 			try {
@@ -68,11 +68,11 @@ public class TestNode extends TmpNode {
 	}
 
 	@Override
-	public void onFailure() {
+	public void onFailure(int status) {
 		if (!this.onFailure) {
 			return;
 		}
 		
-		Agent.log.write(ip, String.format("%s SNMP 등록 실패.", super.ip), "shutdown", false, false);
+		Agent.log.write(ip, String.format("%s SNMP 등록 실패. status[%d]", super.ip, status), "shutdown", false, false);
 	}
 }

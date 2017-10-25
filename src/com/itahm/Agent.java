@@ -11,11 +11,8 @@ import com.itahm.GCMManager;
 import com.itahm.Log;
 import com.itahm.SNMPAgent;
 import com.itahm.ICMPAgent;
-
-
 import com.itahm.json.JSONException;
 import com.itahm.json.JSONObject;
-
 import com.itahm.command.Command;
 import com.itahm.command.Commander;
 import com.itahm.http.Request;
@@ -42,14 +39,14 @@ public class Agent implements ITAhMAgent {
 	public final static int MID_TIMEOUT = 5000;
 	public final static int DEF_TIMEOUT = 3000;
 	
-	private static Map<String, Table> tableMap = new HashMap<>();
+	private static Map<Table.Name, Table> tables = new HashMap<>();
 	
 	public static boolean isDemo = false;
 	public static Log log;
 	public static GCMManager gcmm = null;
 	public static SNMPAgent snmp;
 	public static ICMPAgent icmp;
-	public static Enterprise enterprise = new Enterprise();
+	public final static Enterprise enterprise = new Enterprise();
 	public static JSONObject config;
 	private final static Batch batch = new Batch();
 	private static File root;
@@ -59,57 +56,54 @@ public class Agent implements ITAhMAgent {
 		System.out.format("ITAhM Agent version %s ready.\n", VERSION);
 	}
 	
-	public boolean start(File dataRoot) {
-		if (!this.isClosed) {
-			return false;
+	public static void initialize() throws Exception {		
+		try {
+			log = new Log(root);
+			snmp = new SNMPAgent(root);
+			icmp = new ICMPAgent();
+		} catch (IOException e) {
+			close();
+			
+			throw e;
 		}
-		
-		root = dataRoot;
+	}
+	
+	public void start(File dataRoot) throws Exception {
+		if (!this.isClosed) {
+			return;
+		}
 		
 		this.isClosed = false;
 		
-		try {
-			Table configTable = new Config(dataRoot);
-			
-			tableMap.put(Table.CONFIG, configTable);
-			tableMap.put(Table.ACCOUNT, new Account(dataRoot));
-			tableMap.put(Table.PROFILE, new Profile(dataRoot));
-			tableMap.put(Table.DEVICE, new Device(dataRoot));
-			tableMap.put(Table.POSITION, new Position(dataRoot));
-			tableMap.put(Table.MONITOR, new Monitor(dataRoot));
-			tableMap.put(Table.ICON, new Table(dataRoot, Table.ICON));
-			tableMap.put(Table.CRITICAL, new Critical(dataRoot));
-			tableMap.put(Table.GCM, new GCM(dataRoot));
-			tableMap.put(Table.SMS, new Table(dataRoot, Table.SMS));
-			
-			config = configTable.getJSONObject();
-			
-			if (config.has("gcm")) {
-				if (!config.isNull("gcm")) {
-					gcmm = new GCMManager(API_KEY, config.getString("gcm"));
-				}
+		root = dataRoot;
+		
+		Table configTable = new Config(root);
+	
+		tables.put(Table.Name.CONFIG, configTable);
+		tables.put(Table.Name.ACCOUNT, new Account(root));
+		tables.put(Table.Name.PROFILE, new Profile(root));
+		tables.put(Table.Name.DEVICE, new Device(root));
+		tables.put(Table.Name.POSITION, new Position(root));
+		tables.put(Table.Name.MONITOR, new Monitor(root));
+		tables.put(Table.Name.ICON, new Table(root, Table.Name.ICON));
+		tables.put(Table.Name.CRITICAL, new Critical(root));
+		tables.put(Table.Name.GCM, new GCM(root));
+		tables.put(Table.Name.SMS, new Table(root, Table.Name.SMS));
+		
+		config = configTable.getJSONObject();
+		
+		if (config.has("gcm")) {
+			if (!config.isNull("gcm")) {
+				gcmm = new GCMManager(API_KEY, config.getString("gcm"));
 			}
-			
-			log = new Log(dataRoot);
-			snmp = new SNMPAgent(dataRoot);
-			icmp = new ICMPAgent();
-			
-			batch.start(root);
-			
-			System.out.println("ITAhM agent up.");
-			
-			return true;
-			
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 		
-		stop();
+		initialize();
 		
-		return false;
+		batch.start(root);
 	}
 	
-	public static File getRoot() {
+	public File getRoot() {
 		return root;
 	}
 	
@@ -125,21 +119,10 @@ public class Agent implements ITAhMAgent {
 				, c.get(Calendar.SECOND), msg));
 	}
 	
-	public static JSONObject getInformation(JSONObject json) {
-		return json.put("space", root == null? 0: root.getUsableSpace())
-			.put("version", VERSION)
-			.put("load", batch.load)
-			.put("resource", snmp.getResourceCount())
-			.put("usage", batch.lastDiskUsage)
-			.put("java", System.getProperty("java.version"))
-			.put("expire", ITAhM.expire)
-			.put("demo", isDemo);
-	}
-	
 	private Session signIn(JSONObject data) {
 		String username = data.getString("username");
 		String password = data.getString("password");
-		JSONObject accountData = getTable(Table.ACCOUNT).getJSONObject();
+		JSONObject accountData = getTable(Table.Name.ACCOUNT).getJSONObject();
 		
 		if (accountData.has(username)) {
 			 JSONObject account = accountData.getJSONObject(username);
@@ -179,8 +162,57 @@ public class Agent implements ITAhMAgent {
 		return session;
 	}
 	
-	public static Table getTable(String table) {
-		return tableMap.get(table);
+	public static Table getTable(Table.Name name) {
+		return tables.get(name);
+	}
+	
+	public static Table getTable(String name) {
+		try {
+			return tables.get(Table.Name.getName(name));
+		}
+		catch (IllegalArgumentException iae) {
+			return null;
+		}
+	}
+	
+	public static JSONObject backup() {
+		JSONObject backup = new JSONObject();
+		
+		for (Table.Name name : Table.Name.values()) {
+			backup.put(name.toString(), getTable(name).getJSONObject());
+		}
+		
+		return backup;
+	}
+	
+	public static void restore(JSONObject backup) throws Exception {
+		Table.Name name;
+		
+		close();
+		
+		for (Object key : backup.keySet()) {
+			name = Table.Name.getName((String)key);
+			
+			if (name != null) {
+				Agent.getTable(name).save(backup.getJSONObject(name.toString()));
+			}
+		}
+		
+		initialize();
+	}
+	
+	public static void close() {
+		if (snmp != null) {
+			snmp.close();
+		}
+		
+		if (icmp != null) {
+			icmp.close();
+		}
+		
+		if (gcmm != null) {
+			gcmm.close();
+		}
 	}
 	
 	@Override
@@ -256,37 +288,43 @@ public class Agent implements ITAhMAgent {
 		
 		this.isClosed = true;
 		
+		close();
+		
 		batch.stop();
 		
-		if (snmp != null) {
-			snmp.close();
-		}
-		
-		if (icmp != null) {
-			icmp.close();
-		}
-		
-		if (gcmm != null) {
-			gcmm.close();
-		}
-		
-		if (enterprise != null) {
-			enterprise.close();
-		}
+		enterprise.close();
 		
 		System.out.println("ITAhM agent down.");
 	}
 
+	public static void getInformation(JSONObject jsono) {
+		jsono.put("space", root == null? 0: root.getUsableSpace())
+		.put("version", VERSION)
+		.put("load", batch.load)
+		.put("resource", snmp.getResourceCount())
+		.put("usage", batch.lastDiskUsage)
+		.put("java", System.getProperty("java.version"))
+		.put("expire", ITAhM.expire)
+		.put("demo", isDemo);
+	}
+	
 	@Override
 	public Object get(String key) {
-		// TODO Auto-generated method stub
-		return null;
+		switch(key) {
+
+		default:
+			return null;
+		}
 	}
 
 	@Override
-	public void set(Object value) {
-		// TODO Auto-generated method stub
-		
+	public void set(String key, Object value) {
+		switch(key) {
+		case "log":
+			log.sysLog((String)value);
+			
+			break;
+		}
 	}
 
 }

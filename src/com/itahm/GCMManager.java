@@ -17,7 +17,7 @@ public class GCMManager extends DownStream {
 	 * token - id mapping
 	 */
 	private final Map<String, String> tokenToID = new HashMap<> ();
-	private final Table gcmTable = Agent.getTable(Table.GCM);
+	private final Table gcmTable = Agent.getTable(Table.Name.GCM);
 	
 	public GCMManager(String apiKey, String host) throws IOException {
 		super(apiKey, host);

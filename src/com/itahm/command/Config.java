@@ -77,7 +77,7 @@ public class Config implements Command {
 				Agent.config.put(key, data.getString("value"));
 			}
 			
-			Agent.getTable(Table.CONFIG).save();
+			Agent.getTable(Table.Name.CONFIG).save();
 			
 			return Response.getInstance(Response.Status.OK);
 		}

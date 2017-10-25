@@ -10,7 +10,7 @@ import com.itahm.table.Table;
 public class Account extends Table {
 
 	public Account(File dataRoot) throws IOException {
-		super(dataRoot, ACCOUNT);
+		super(dataRoot, Name.ACCOUNT);
 		
 		if (isEmpty()) {
 			getJSONObject()

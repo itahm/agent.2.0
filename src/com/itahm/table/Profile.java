@@ -9,7 +9,7 @@ import com.itahm.json.JSONObject;
 public class Profile extends Table {
 	
 	public Profile(File dataRoot) throws IOException {
-		super(dataRoot, PROFILE);
+		super(dataRoot, Name.PROFILE);
 		
 		if (isEmpty()) {
 			getJSONObject()

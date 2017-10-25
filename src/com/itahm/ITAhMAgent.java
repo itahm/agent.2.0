@@ -11,8 +11,8 @@ import com.itahm.http.Response;
 public interface ITAhMAgent {
 	public Response executeRequest(Request request, JSONObject data);
 	public void closeRequest(Request request);
-	public boolean start(File root);
+	public void start(File root) throws Exception;
 	public void stop();
 	public Object get(String key);
-	public void set(Object value);
+	public void set(String key, Object value);
 }

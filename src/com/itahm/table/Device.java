@@ -4,42 +4,29 @@ import java.io.File;
 import java.io.IOException;
 
 import com.itahm.json.JSONObject;
-
 import com.itahm.Agent;
 
 public class Device extends Table {
 	
 	public Device(File dataRoot) throws IOException {
-		super(dataRoot, DEVICE);
+		super(dataRoot, Name.DEVICE);
 	}
 	
 	/**
-	 * 추가인 경우 position 정보를 생성해 주어야 하고
-	 * 삭제인 경우 link 데이터, position 정보, monior 정보를 함께 삭제해 주어야 한다.
+	 * 추가인 경우 position 기본 정보를 생성해 주어야 하며,
+	 * 삭제인 경우 monitor, critical 정보를 함께 삭제해 주고,
+	 * position 정보는 클라이언트가 동기화 하므로 서버에서는 처리하지 않음.  
 	 * @throws IOException 
 	 */
 	
-	// TODO 삭제의 경우 critical 정보는?
-	
 	public JSONObject put(String ip, JSONObject device) throws IOException {
 		if (device == null) {
-			if (super.table.has(ip)) {
-				Table posTable = Agent.getTable(Table.POSITION);
-				JSONObject linkData = posTable.getJSONObject(ip).getJSONObject("ifEntry");
-				
-				if (linkData.length() > 0) {
-					for (Object peerIP : linkData.keySet()) {
-						posTable.getJSONObject((String)peerIP).getJSONObject("ifEntry").remove(ip);
-					}
-				}
-				
-				posTable.put(ip, null);
-				
-				Agent.getTable(Table.MONITOR).put(ip, null);
-			}
+			Agent.getTable(Name.MONITOR).put(ip, null);
+			Agent.getTable(Name.CRITICAL).put(ip, null);
 		}
 		else {
-			Table posTable = Agent.getTable(Table.POSITION);
+			// 추가의 경우 client와 동기화 위해 생성해 줌
+			Table posTable = Agent.getTable(Name.POSITION);
 			
 			if (posTable.getJSONObject(ip) == null) {
 				posTable.put(ip, new JSONObject()

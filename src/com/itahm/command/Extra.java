@@ -15,28 +15,16 @@ public class Extra implements Command {
 	
 	private static int TOP_MAX = 10;
 	
-	public enum Key {
-		RESET,
-		FAILURE,
-		SEARCH,
-		MESSAGE,
-		TOP,
-		LOG,
-		SYSLOG,
-		ENTERPRISE,
-		REPORT;
-	};
-	
 	@Override
 	public Response execute(Request request, JSONObject data) throws IOException {
 		
 		try {
-			switch(Key.valueOf(data.getString("extra").toUpperCase())) {
-			case RESET:
+			switch(data.getString("extra")) {
+			case "reset":
 				Agent.snmp.resetResponse(data.getString("ip"));
 				
 				return Response.getInstance(Response.Status.OK);
-			case FAILURE:
+			case "failure":
 				JSONObject json = Agent.snmp.getFailureRate(data.getString("ip"));
 				
 				if (json == null) {
@@ -45,7 +33,7 @@ public class Extra implements Command {
 				}
 				
 				return Response.getInstance(Response.Status.OK, json.toString());
-			case SEARCH:
+			case "search":
 				Network network = new Network(InetAddress.getByName(data.getString("network")).getAddress(), data.getInt("mask"));
 				Iterator<String> it = network.iterator();
 				
@@ -54,25 +42,41 @@ public class Extra implements Command {
 				}
 				
 				return Response.getInstance(Response.Status.OK);
-			case MESSAGE:
+			case "message":
 				Agent.log.broadcast(data.getString("message"));
 				
 				return Response.getInstance(Response.Status.OK);
-			case TOP:
+			case "top":
 				int count = TOP_MAX;
 				if (data.has("count")) {
 					count = Math.min(data.getInt("count"), TOP_MAX);
 				}
 				
 				return Response.getInstance(Response.Status.OK, Agent.snmp.getTop(count).toString());
-			case LOG:
+			
+			case "log":
 				return Response.getInstance(Response.Status.OK, Agent.log.read(data.getLong("date")));
-			case ENTERPRISE:
+			
+			case "enterprise":
 				return Agent.snmp.executeEnterprise(request, data);
-			case SYSLOG:
+			
+			case "syslog":
 				return Response.getInstance(Response.Status.OK, new JSONObject().put("log", Agent.log.getSysLog(data.getLong("date"))).toString());
-			case REPORT:
+			
+			case "report":
 				return Response.getInstance(Response.Status.OK, Agent.log.read(data.getLong("start"), data.getLong("end")));
+			
+			case "backup":
+				return Response.getInstance(Response.Status.OK, Agent.backup().toString());
+				
+			case "restore":System.out.println(data.getJSONObject("backup"));
+				Agent.restore(data.getJSONObject("backup"));
+				
+				return Response.getInstance(Response.Status.OK);
+				
+			default:
+				return Response.getInstance(Response.Status.BADREQUEST,
+						new JSONObject().put("error", "invalid extra").toString());	
 			}
 		}
 		catch (NullPointerException npe) {
@@ -80,13 +84,12 @@ public class Extra implements Command {
 		}
 		catch (JSONException jsone) {
 			return Response.getInstance(Response.Status.BADREQUEST,
-					new JSONObject().put("error", "invalid json request").toString());
+				new JSONObject().put("error", "invalid json request").toString());
 		}
-		catch(IllegalArgumentException iae) {
+		catch (Exception e) {
+			return Response.getInstance(Response.Status.UNAVAILABLE,
+				new JSONObject().put("error", e.getMessage()).toString());
 		}
-		
-		return Response.getInstance(Response.Status.BADREQUEST,
-			new JSONObject().put("error", "invalid extra").toString());
 	}
 
 }

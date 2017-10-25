@@ -94,11 +94,11 @@ public class SNMPAgent extends Snmp implements Closeable {
 		
 		nodeList = new ConcurrentHashMap<String, SNMPNode>();
 		
-		monitorTable = Agent.getTable(Table.MONITOR);
+		monitorTable = Agent.getTable(Table.Name.MONITOR);
 		
-		profileTable = Agent.getTable(Table.PROFILE);
+		profileTable = Agent.getTable(Table.Name.PROFILE);
 		
-		criticalTable = Agent.getTable(Table.CRITICAL);
+		criticalTable = Agent.getTable(Table.Name.CRITICAL);
 		
 		topTable = new TopTable<>(Resource.class);
 		
