@@ -37,10 +37,10 @@ public class ICMPNode implements Runnable, Closeable {
 	public void run() {
 		long delay, sent;
 		
-		init: while (!Thread.interrupted()) {
+		init: while (!this.thread.isInterrupted()) {
 			try {
 				try {
-					delay = bq.take();
+					delay = this.bq.take();
 					
 					if (delay > 0) {
 						Thread.sleep(delay);
@@ -52,7 +52,7 @@ public class ICMPNode implements Runnable, Closeable {
 					sent = System.currentTimeMillis();
 					
 					for (int i=0; i < retry; i++) {
-						if (Thread.interrupted()) {
+						if (this.thread.isInterrupted()) {
 							throw new InterruptedException();
 						}
 						
@@ -74,27 +74,30 @@ public class ICMPNode implements Runnable, Closeable {
 		}
 	}
 	
-	public void ping() {
-		ping(0);
-	}
-	
 	public void ping(long delay) {
 		try {
-			bq.put(delay);
+			this.bq.put(delay);
 		} catch (InterruptedException e) {
 		}
 	}
 
+	public void close(boolean gracefully) throws IOException {
+		close();
+		
+		if (gracefully) {
+			try {
+				this.thread.join();
+			} catch (InterruptedException e) {}
+		}
+	}
+	
 	@Override
 	public void close() throws IOException {
 		this.thread.interrupt();
 		
 		try {
 			this.bq.put(-1L);
-			
-			this.thread.join();
-		} catch (InterruptedException ie) {
-		}
+		} catch (InterruptedException ie) {}
 	}
 	
 	public static void main(String [] args) throws IOException {
@@ -113,7 +116,7 @@ public class ICMPNode implements Runnable, Closeable {
 		root: while (true) {
 			switch (System.in.read()) {
 			case 'p':
-				node.ping();
+				node.ping(0);
 				break;
 			case 'c':
 				node.close();

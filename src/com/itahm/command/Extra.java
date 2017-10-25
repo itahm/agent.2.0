@@ -52,31 +52,36 @@ public class Extra implements Command {
 					count = Math.min(data.getInt("count"), TOP_MAX);
 				}
 				
-				return Response.getInstance(Response.Status.OK, Agent.snmp.getTop(count).toString());
+				return Response.getInstance(Response.Status.OK,
+					Agent.snmp.getTop(count).toString());
 			
 			case "log":
-				return Response.getInstance(Response.Status.OK, Agent.log.read(data.getLong("date")));
+				return Response.getInstance(Response.Status.OK,
+					Agent.log.read(data.getLong("date")));
 			
 			case "enterprise":
 				return Agent.snmp.executeEnterprise(request, data);
 			
 			case "syslog":
-				return Response.getInstance(Response.Status.OK, new JSONObject().put("log", Agent.log.getSysLog(data.getLong("date"))).toString());
+				return Response.getInstance(Response.Status.OK,
+					new JSONObject().put("log", Agent.log.getSysLog(data.getLong("date"))).toString());
 			
 			case "report":
-				return Response.getInstance(Response.Status.OK, Agent.log.read(data.getLong("start"), data.getLong("end")));
+				return Response.getInstance(Response.Status.OK,
+					Agent.log.read(data.getLong("start"), data.getLong("end")));
 			
 			case "backup":
-				return Response.getInstance(Response.Status.OK, Agent.backup().toString());
+				return Response.getInstance(Response.Status.OK,
+					Agent.backup().toString());
 				
-			case "restore":System.out.println(data.getJSONObject("backup"));
+			case "restore":
 				Agent.restore(data.getJSONObject("backup"));
 				
 				return Response.getInstance(Response.Status.OK);
 				
 			default:
 				return Response.getInstance(Response.Status.BADREQUEST,
-						new JSONObject().put("error", "invalid extra").toString());	
+					new JSONObject().put("error", "invalid extra").toString());	
 			}
 		}
 		catch (NullPointerException npe) {

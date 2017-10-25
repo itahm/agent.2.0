@@ -55,7 +55,6 @@ public abstract class Node implements Runnable, Closeable {
 	private long failureCount = 0;
 	private boolean isInitialized = false;
 	private final BlockingQueue<PDU> bq = new LinkedBlockingQueue<>();
-	private boolean processing = false;
 	
 	protected long lastResponse;
 	protected long responseTime;
@@ -82,16 +81,16 @@ public abstract class Node implements Runnable, Closeable {
 		thread.start();
 	}
 	
-	private static long ping(InetAddress ip) throws IOException {
-		long sent = System.currentTimeMillis();
+	public void close(boolean gracefully) throws IOException {
+		close();
 		
-		for (int i=0; i < TIMEOUT_COUNT; i++) {
-			if (ip.isReachable(TIMEOUTS[i])) {
-				return System.currentTimeMillis() - sent;
+		if (gracefully) {
+			try {
+				this.thread.join();
+			} catch (InterruptedException ie) {
+				throw new IOException (ie);
 			}
 		}
-		
-		return -1;
 	}
 	
 	@Override
@@ -99,38 +98,44 @@ public abstract class Node implements Runnable, Closeable {
 		this.thread.interrupt();
 		
 		try {
-			this.thread.join();
-		} catch (InterruptedException ie) {
-			throw new IOException (ie);
+			this.bq.put(new PDU());
+		} catch (InterruptedException e) {
 		}
 	}
 	
 	@Override
 	public void run() {
 		PDU pdu;
-		long rt;
+		long sent;
 		
-		while (!this.thread.isInterrupted()) {
+		init: while (!this.thread.isInterrupted()) {
 			try {
 				pdu = this.bq.take();
 				
-				if (!this.processing) {
-					this.processing = true;
-					
-					rt = ping(this.ip);
-					
-					if (rt < 0) {
-						onTimeout(true);
-						
-						continue;
-					}
-					
-					data.put("responseTime", this.responseTime = rt);
-					
-					onTimeout(false);
+				if (this.thread.isInterrupted()) {
+					throw new InterruptedException();
 				}
 				
-				parseResponse(this.snmp.send(pdu, this.target));
+				sent = System.currentTimeMillis();
+				
+				for (int i=0; i < TIMEOUT_COUNT; i++) {
+					if (this.thread.isInterrupted()) {
+						throw new InterruptedException();
+					}
+					
+					if (ip.isReachable(TIMEOUTS[i])) {
+						this.data.put("responseTime", this.responseTime = System.currentTimeMillis() - sent);
+						
+						onTimeout(false);
+						
+						parseResponse(this.snmp.send(pdu, this.target));
+						
+						continue init;
+					}
+				}
+				
+				onTimeout(true);
+				
 			} catch (InterruptedException ie) {
 				break;
 			} catch (IOException ioe) {
@@ -205,8 +210,6 @@ public abstract class Node implements Runnable, Closeable {
 		hrSWRunName.clear();
 		
 		this.pdu.setRequestID(new Integer32(0));
-		
-		this.processing = false;
 		
 		this.bq.add(this.pdu);
 	}
