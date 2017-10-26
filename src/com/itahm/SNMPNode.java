@@ -177,7 +177,7 @@ public class SNMPNode extends Node {
 	
 	public JSONObject test() {
 		return new JSONObject()
-			.put("sysObjectID", super.data.getString("sysObjectID"))
+			.put("sysObjectID", super.data.has("sysObjectID")? super.data.getString("sysObjectID"): "")
 			.put("hrProcessorEntry", super.hrProcessorEntry.size())
 			.put("hrStorageEntry", super.hrStorageEntry.size())
 			.put("ifEntry", super.ifEntry.size());
