@@ -704,6 +704,15 @@ public class SNMPAgent extends Snmp implements Closeable {
 		return size > 0? bi.divide(BigInteger.valueOf(size)).longValue(): 0;
 	}
 	
+	public final JSONObject test() {
+		JSONObject jsono = new JSONObject();
+		
+		for (String ip : this.nodeList.keySet()) {
+			jsono.put(ip,this.nodeList.get(ip).test());
+		}
+		
+		return jsono;
+	}
 	public long getResourceCount() {
 		long count = 0;
 		

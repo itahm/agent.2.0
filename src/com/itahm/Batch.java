@@ -30,10 +30,19 @@ public class Batch {
 		
 		this.timer = new Timer();
 		
+		System.out.println("Batch scheduling...");
+		
 		scheduleDiskMonitor(root);
+		System.out.println("Free space monitor up.");
+		
 		scheduleUsageMonitor(new File(root, "node"));
+		System.out.println("Disk usage monitor up.");
+		
 		scheduleLoadMonitor();
+		System.out.println("Server load monitor up.");
+		
 		scheduleDiskCleaner();
+		System.out.println("Disk cleaner up.");
 		
 		return true;
 	}

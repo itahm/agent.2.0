@@ -64,7 +64,7 @@ public class ITAhM extends Listener implements Closeable {
 			}
 		}, 0, DAY1);
 		
-		System.out.println("ITAhM agent up.");
+		System.out.println("ITAhM agent has been successfully started.");
 	}
 	
 	@Override

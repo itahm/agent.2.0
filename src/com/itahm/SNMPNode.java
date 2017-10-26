@@ -175,6 +175,14 @@ public class SNMPNode extends Node {
 		}
 	}
 	
+	public JSONObject test() {
+		return new JSONObject()
+			.put("sysObjectID", super.data.getString("sysObjectID"))
+			.put("hrProcessorEntry", super.hrProcessorEntry.size())
+			.put("hrStorageEntry", super.hrStorageEntry.size())
+			.put("ifEntry", super.ifEntry.size());
+	}
+	
 	private void parseStorage() throws IOException {
 		JSONObject data;
 		TopTable.Value max = null;

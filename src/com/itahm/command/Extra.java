@@ -79,6 +79,10 @@ public class Extra implements Command {
 				
 				return Response.getInstance(Response.Status.OK);
 				
+			case "test":
+				return Response.getInstance(Response.Status.OK,
+					Agent.snmp.test().toString());
+				
 			default:
 				return Response.getInstance(Response.Status.BADREQUEST,
 					new JSONObject().put("error", "invalid extra").toString());	
