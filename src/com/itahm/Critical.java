@@ -60,7 +60,7 @@ abstract public class Critical {
 					rscData.put((String)index, new Data(list.getJSONObject((String)index).getInt("limit")));
 				}
 				catch(JSONException jsone) {
-					Agent.log(Util.EToString(jsone));
+					Agent.syslog(Util.EToString(jsone));
 				}
 			}
 		}

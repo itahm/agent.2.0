@@ -31,7 +31,7 @@ public class GCMManager extends DownStream {
 			try {
 				register(gcmData.getJSONObject(id).getString("token"), id);
 			} catch (JSONException jsone) {
-				Agent.log(Util.EToString(jsone));
+				Agent.syslog(Util.EToString(jsone));
 			}
 		}
 	}
@@ -43,7 +43,7 @@ public class GCMManager extends DownStream {
 			try {
 				super.send(gcmData.getJSONObject((String)id).getString("token"), "ITAhM message", message);
 			} catch (IOException | JSONException e) {
-				Agent.log(Util.EToString(e));
+				Agent.syslog(Util.EToString(e));
 			}
 		}
 	}
@@ -65,7 +65,7 @@ public class GCMManager extends DownStream {
 		try {
 			this.gcmTable.save();
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 		}
 	}
 
@@ -83,14 +83,14 @@ public class GCMManager extends DownStream {
 		try {
 			this.gcmTable.save();
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 		}
 	}
 
 	@Override
 	public void onComplete(int status) {
 		if (status != 200) {
-			Agent.log(String.format("GCM failed. status %d", status));
+			Agent.syslog(String.format("GCM failed. status %d", status));
 		}
 	}
 

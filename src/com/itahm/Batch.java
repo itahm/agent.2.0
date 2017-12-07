@@ -124,13 +124,13 @@ public class Batch {
 		c.set(Calendar.SECOND, 0);
 		c.set(Calendar.MILLISECOND, 0);
 		
-		Agent.snmp.clean();
+		Agent.clean();
 		
 		this.timer.schedule(new TimerTask() {
 
 			@Override
 			public void run() {
-				Agent.snmp.clean();
+				Agent.clean();
 			}
 			
 		}, c.getTime(), DAY1);
@@ -149,7 +149,7 @@ public class Batch {
 					freeSpace = MAX * root.getUsableSpace() / root.getTotalSpace();
 					
 					if (freeSpace < lastFreeSpace && freeSpace < CRITICAL) {
-						Agent.log.write("ITAhM", String.format("저장 여유공간 %d%%", freeSpace), "system", false, true);
+						Agent.log("ITAhM", String.format("저장 여유공간 %d%%", freeSpace), "system", false, true);
 					}
 					
 					lastFreeSpace = freeSpace;
@@ -178,7 +178,7 @@ public class Batch {
 				
 				key = c.getTimeInMillis();
 				
-				if (this.map.put(key, Agent.snmp.calcLoad()) == null) {
+				if (this.map.put(key, Agent.calcLoad()) == null) {
 					if (this.queue[this.position] != null) {
 						this.map.remove(this.queue[this.position]);
 					}

@@ -31,7 +31,7 @@ public class ICMPAgent implements ICMPListener, Closeable {
 					addNode((String)ip);
 				}
 			} catch (JSONException jsone) {
-				Agent.log(Util.EToString(jsone));
+				Agent.syslog(Util.EToString(jsone));
 			}
 		}
 		
@@ -48,7 +48,7 @@ public class ICMPAgent implements ICMPListener, Closeable {
 			
 			node.ping(0);
 		} catch (UnknownHostException uhe) {
-			Agent.log(Util.EToString(uhe));
+			Agent.syslog(Util.EToString(uhe));
 		}		
 	}
 	
@@ -66,7 +66,7 @@ public class ICMPAgent implements ICMPListener, Closeable {
 		try {
 			node.close();
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 		}
 		
 		return true;
@@ -88,11 +88,11 @@ public class ICMPAgent implements ICMPListener, Closeable {
 				try {
 					isReachable = InetAddress.getByName(ip).isReachable(Agent.DEF_TIMEOUT);
 				} catch (IOException e) {
-					Agent.log(Util.EToString(e));
+					Agent.syslog(Util.EToString(e));
 				}
 				
 				if (!isReachable) {
-					Agent.log.write(ip, String.format("%s ICMP 등록 실패.", ip), "shutdown", false, false);
+					Agent.log(ip, String.format("%s ICMP 등록 실패.", ip), "shutdown", false, false);
 				}
 				else {
 					monitorTable.getJSONObject().put(ip, new JSONObject()
@@ -103,12 +103,12 @@ public class ICMPAgent implements ICMPListener, Closeable {
 					try {
 						monitorTable.save();
 					} catch (IOException ioe) {
-						Agent.log(Util.EToString(ioe));
+						Agent.syslog(Util.EToString(ioe));
 					}
 					
 					addNode(ip);
 					
-					Agent.log.write(ip, String.format("%s ICMP 등록 성공.", ip), "shutdown", true, false);
+					Agent.log(ip, String.format("%s ICMP 등록 성공.", ip), "shutdown", true, false);
 				}
 			}
 			
@@ -128,10 +128,10 @@ public class ICMPAgent implements ICMPListener, Closeable {
 			try {
 				this.monitorTable.save();
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 			
-			Agent.log.write(node.ip, String.format("%s ICMP 정상.", node.ip), "shutdown", true, true);
+			Agent.log(node.ip, String.format("%s ICMP 정상.", node.ip), "shutdown", true, true);
 		}
 		
 		node.ping(1000);
@@ -150,10 +150,10 @@ public class ICMPAgent implements ICMPListener, Closeable {
 			try {
 				this.monitorTable.save();
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 			
-			Agent.log.write(node.ip, String.format("%s ICMP 응답 없음.", node.ip), "shutdown", false, true);
+			Agent.log(node.ip, String.format("%s ICMP 응답 없음.", node.ip), "shutdown", false, true);
 		}
 		
 		node.ping(0);
@@ -181,7 +181,7 @@ public class ICMPAgent implements ICMPListener, Closeable {
 		System.out.format("ICMP manager stop.\n");
 		
 		if (e != null) {
-			Agent.log(Util.EToString(e));
+			Agent.syslog(Util.EToString(e));
 		}
 	}
 	

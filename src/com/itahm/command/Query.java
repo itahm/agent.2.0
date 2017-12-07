@@ -15,7 +15,7 @@ public class Query implements Command {
 	public Response execute(Request request, JSONObject data) throws IOException {
 		
 		try {
-			SNMPNode node = Agent.snmp.getNode(data.getString("ip"));
+			SNMPNode node = Agent.getNode(data.getString("ip"));
 			
 			if (node == null) {
 				return Response.getInstance(Response.Status.BADREQUEST,

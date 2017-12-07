@@ -14,7 +14,7 @@ public class Listen implements Command {
 	public Response execute(Request request, JSONObject data) throws IOException {
 		long index = data.has("index")? data.getInt("index"): -1;
 		
-		Agent.log.listen(request, index);
+		Agent.listen(request, index);
 		
 		return null;
 	}

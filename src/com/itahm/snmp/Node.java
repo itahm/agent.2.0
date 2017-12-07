@@ -512,7 +512,7 @@ public abstract class Node implements Runnable, Closeable {
 					nextRequests.add(responseVB);
 				}
 			} catch(ClassCastException | JSONException e) { 
-				Agent.log.sysLog(e.getMessage());
+				Agent.syslog(e.getMessage());
 			}
 		}
 		

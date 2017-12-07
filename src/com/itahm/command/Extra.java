@@ -21,11 +21,11 @@ public class Extra implements Command {
 		try {
 			switch(data.getString("extra")) {
 			case "reset":
-				Agent.snmp.resetResponse(data.getString("ip"));
+				Agent.resetResponse(data.getString("ip"));
 				
 				return Response.getInstance(Response.Status.OK);
 			case "failure":
-				JSONObject json = Agent.snmp.getFailureRate(data.getString("ip"));
+				JSONObject json = Agent.getFailureRate(data.getString("ip"));
 				
 				if (json == null) {
 					return Response.getInstance(Response.Status.BADREQUEST,
@@ -38,12 +38,12 @@ public class Extra implements Command {
 				Iterator<String> it = network.iterator();
 				
 				while(it.hasNext()) {
-					Agent.snmp.testNode(it.next(), false);
+					Agent.testSNMPNode(it.next(), false);
 				}
 				
 				return Response.getInstance(Response.Status.OK);
 			case "message":
-				Agent.log.broadcast(data.getString("message"));
+				Agent.sendEvent(data.getString("message"));
 				
 				return Response.getInstance(Response.Status.OK);
 			case "top":
@@ -53,22 +53,22 @@ public class Extra implements Command {
 				}
 				
 				return Response.getInstance(Response.Status.OK,
-					Agent.snmp.getTop(count).toString());
+					Agent.getTop(count).toString());
 			
 			case "log":
 				return Response.getInstance(Response.Status.OK,
-					Agent.log.read(data.getLong("date")));
+					Agent.getLog(data.getLong("date")));
 			
 			case "enterprise":
-				return Agent.snmp.executeEnterprise(request, data);
+				return Agent.executeEnterprise(request, data);
 			
 			case "syslog":
 				return Response.getInstance(Response.Status.OK,
-					new JSONObject().put("log", Agent.log.getSysLog(data.getLong("date"))).toString());
+					new JSONObject().put("log", Agent.getSyslog(data.getLong("date"))).toString());
 			
 			case "report":
 				return Response.getInstance(Response.Status.OK,
-					Agent.log.read(data.getLong("start"), data.getLong("end")));
+					Agent.report(data.getLong("start"), data.getLong("end")));
 			
 			case "backup":
 				return Response.getInstance(Response.Status.OK,
@@ -81,15 +81,12 @@ public class Extra implements Command {
 				
 			case "test":
 				return Response.getInstance(Response.Status.OK,
-					Agent.snmp.test().toString());
+					Agent.snmpTest().toString());
 				
 			default:
 				return Response.getInstance(Response.Status.BADREQUEST,
 					new JSONObject().put("error", "invalid extra").toString());	
 			}
-		}
-		catch (NullPointerException npe) {
-			return Response.getInstance(Response.Status.UNAVAILABLE);
 		}
 		catch (JSONException jsone) {
 			return Response.getInstance(Response.Status.BADREQUEST,

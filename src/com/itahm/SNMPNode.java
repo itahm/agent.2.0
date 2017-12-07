@@ -110,7 +110,7 @@ public class SNMPNode extends Node {
 			dbToFile.put(index, rollingFile);
 		}
 		
-		rollingFile.roll(value, Agent.config.getInt("interval"));
+		rollingFile.roll(value, Agent.getRollingInterval());
 	}
 	
 	public JSONObject getData(String database, String index, long start, long end, boolean summary) {
@@ -126,7 +126,7 @@ public class SNMPNode extends Node {
 			}
 		}
 		catch (IllegalArgumentException | IOException e) {
-			Agent.log(Util.EToString(e));
+			Agent.syslog(Util.EToString(e));
 		}
 		
 		return null;
@@ -201,7 +201,7 @@ public class SNMPNode extends Node {
 				value = 1L* tmpValue * data.getInt("hrStorageAllocationUnits");
 				type = data.getInt("hrStorageType");
 			} catch (JSONException jsone) {
-				Agent.log(Util.EToString(jsone));
+				Agent.syslog(Util.EToString(jsone));
 				
 				return;
 			}
@@ -466,7 +466,7 @@ public class SNMPNode extends Node {
 					parseInterface(super.data.getJSONObject("ifEntry"));
 				}
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 		}
 		
@@ -478,7 +478,7 @@ public class SNMPNode extends Node {
 	@Override
 	public void onException(Exception e) {
 		if (e != null) {
-			Agent.log(Util.EToString(e));
+			Agent.syslog(Util.EToString(e));
 		}
 		
 		this.agent.onException(this.ip);

@@ -42,12 +42,12 @@ public class Agent implements ITAhMAgent {
 	private static Map<Table.Name, Table> tables = new HashMap<>();
 	
 	public static boolean isDemo = false;
-	public static Log log;
-	public static GCMManager gcmm = null;
-	public static SNMPAgent snmp;
-	public static ICMPAgent icmp;
+	private static Log log;
+	private static GCMManager gcmm = null;
+	private static SNMPAgent snmp;
+	private static ICMPAgent icmp;
 	public final static Enterprise enterprise = new Enterprise();
-	public static JSONObject config;
+	private static JSONObject config;
 	private final static Batch batch = new Batch();
 	private static File root;
 	private boolean isClosed = true;
@@ -56,15 +56,22 @@ public class Agent implements ITAhMAgent {
 		System.out.format("ITAhM Agent version %s ready.\n", VERSION);
 	}
 	
-	public static void initialize() throws Exception {		
+	public static void initialize() throws IOException {
 		try {
 			log = new Log(root);
 			snmp = new SNMPAgent(root);
 			icmp = new ICMPAgent();
-		} catch (IOException e) {
+			
+			if (config.has("gcm")) {
+				if (!config.isNull("gcm")) {
+					gcmm = new GCMManager(API_KEY, config.getString("gcm"));
+				}
+			}
+			
+		} catch (IOException ioe) {
 			close();
 			
-			throw e;
+			throw ioe;
 		}
 	}
 	
@@ -76,10 +83,8 @@ public class Agent implements ITAhMAgent {
 		this.isClosed = false;
 		
 		root = dataRoot;
-		
-		Table configTable = new Config(root);
 	
-		tables.put(Table.Name.CONFIG, configTable);
+		tables.put(Table.Name.CONFIG, new Config(root));
 		tables.put(Table.Name.ACCOUNT, new Account(root));
 		tables.put(Table.Name.PROFILE, new Profile(root));
 		tables.put(Table.Name.DEVICE, new Device(root));
@@ -90,13 +95,7 @@ public class Agent implements ITAhMAgent {
 		tables.put(Table.Name.GCM, new GCM(root));
 		tables.put(Table.Name.SMS, new Table(root, Table.Name.SMS));
 		
-		config = configTable.getJSONObject();
-		
-		if (config.has("gcm")) {
-			if (!config.isNull("gcm")) {
-				gcmm = new GCMManager(API_KEY, config.getString("gcm"));
-			}
-		}
+		config = getTable(Table.Name.CONFIG).getJSONObject();
 		
 		initialize();
 		
@@ -105,18 +104,6 @@ public class Agent implements ITAhMAgent {
 	
 	public File getRoot() {
 		return root;
-	}
-	
-	public static void log(String msg) {
-		Calendar c = Calendar.getInstance();
-		
-		log.sysLog(String.format("%04d-%02d-%02d %02d:%02d:%02d %s"
-				, c.get(Calendar.YEAR)
-				, c.get(Calendar.MONTH +1)
-				, c.get(Calendar.DAY_OF_MONTH)
-				, c.get(Calendar.HOUR_OF_DAY)
-				, c.get(Calendar.MINUTE)
-				, c.get(Calendar.SECOND), msg));
 	}
 	
 	private Session signIn(JSONObject data) {
@@ -185,6 +172,60 @@ public class Agent implements ITAhMAgent {
 		return backup;
 	}
 	
+	public static boolean clean() {
+		if (snmp == null) {
+			return false;
+		}
+		
+		int day = config.getInt("clean");
+		
+		if (day > 0) {
+			snmp.clean(day);
+		}
+		
+		return true;
+	}
+	
+	public static int getRollingInterval() {
+		return config.getInt("interval");
+	}
+	
+	public static void config(String key, Object value) throws IOException {
+		config.put(key, value);
+		
+		getTable(Table.Name.CONFIG).save();
+	}
+	
+	public static void log(String ip, String message, String type, boolean status, boolean broadcast) {
+		if (log != null) {
+			log.write(ip, message, type, status, broadcast);
+		}
+	}
+	
+	public static void sendEvent(String message) {
+		if (gcmm != null) {
+			gcmm.broadcast(message);
+		}
+	
+		if (config.has("sms") && config.getBoolean("sms")) {
+			enterprise.sendEvent(message);
+		}
+	}
+	
+	public static void syslog(String msg) {
+		if (log != null) {
+			Calendar c = Calendar.getInstance();
+		
+			log.sysLog(String.format("%04d-%02d-%02d %02d:%02d:%02d %s"
+				, c.get(Calendar.YEAR)
+				, c.get(Calendar.MONTH +1)
+				, c.get(Calendar.DAY_OF_MONTH)
+				, c.get(Calendar.HOUR_OF_DAY)
+				, c.get(Calendar.MINUTE)
+				, c.get(Calendar.SECOND), msg));
+		}
+	}
+	
 	public static void restore(JSONObject backup) throws Exception {
 		Table.Name name;
 		
@@ -199,6 +240,151 @@ public class Agent implements ITAhMAgent {
 		}
 		
 		initialize();
+	}
+	
+	public static long calcLoad() {
+		if (snmp == null) {
+			return -1;
+		}
+		
+		return snmp.calcLoad();
+	}
+	
+	public static boolean removeSNMPNode(String ip) {
+		if (snmp == null) {
+			return false;
+		}
+		
+		return snmp.removeNode(ip);
+	}
+	
+	public static void testSNMPNode(String ip, boolean onFailure) {
+		if (snmp != null) {
+			snmp.testNode(ip, onFailure);
+		}
+	}
+	
+	public static boolean removeICMPNode(String ip) {
+		if (icmp == null) {
+			return false;
+		}
+		
+		return icmp.removeNode(ip);
+	}
+	
+	public static void testICMPNode(String ip) {
+		if (icmp != null) {
+			icmp.testNode(ip);
+		}
+	}
+	
+	public static void resetCritical(String ip, JSONObject critical) {
+		if (snmp != null) {
+			snmp.resetCritical(ip, critical);
+		}
+	}
+	
+	public static boolean addUSM(JSONObject usm) {
+		if (snmp == null) {
+			return false;
+		}
+		
+		return snmp.addUSM(usm);
+	}
+	
+	public static void removeUSM(String usm) {
+		if (snmp != null) {
+			snmp.removeUSM(usm);
+		}
+	}
+	
+	public static boolean isIdleProfile(String name) {
+		if (snmp == null) {
+			return false;
+		}
+		
+		return snmp.isIdleProfile(name);
+	}
+	
+	public static SNMPNode getNode(String ip) {
+		if (snmp == null) {
+			return null;
+		}
+		
+		return snmp.getNode(ip); 
+	}
+	
+	public static JSONObject getNodeData(String ip, boolean offline) {
+		return snmp == null? null: snmp.getNodeData(ip, offline);
+	}
+	
+	public static Response executeEnterprise(Request request, JSONObject data) {
+		return snmp == null? Response.getInstance(Response.Status.UNAVAILABLE):
+			snmp.executeEnterprise(request, data);
+	}
+	
+	public static JSONObject snmpTest() {
+		return snmp == null? new JSONObject(): snmp.test();
+	}
+	
+	public static JSONObject getTop(int count) {
+		return snmp == null? new JSONObject(): snmp.getTop(count);
+	}
+	
+	public static String report(long start, long end) throws IOException {
+		return log == null? new JSONObject().toString(): log.read(start, end);
+	}
+	
+	public static void resetResponse(String ip) {
+		if (snmp != null) {
+			snmp.resetResponse(ip);
+		}
+	}
+	
+	public static JSONObject getFailureRate(String ip) {
+		return snmp == null? null: snmp.getFailureRate(ip);
+	}
+	
+	public static String getLog(long date) throws IOException {
+		return log == null? new JSONObject().toString(): log.read(date);
+	}
+	
+	public static String getSyslog(long date) throws IOException {
+		return log == null? new JSONObject().toString(): log.getSysLog(date);
+	}
+	
+	public static void listen(Request request, long index) throws IOException {
+		if (log == null) {
+			throw new IOException("Service unavailable.");
+		}
+		
+		log.listen(request, index);
+	}
+	
+	public static void setGCM(String host) throws IOException {
+		if (host == null) {
+			if (gcmm != null) {
+				gcmm.close();
+				
+				gcmm = null;
+			}
+		}
+		else {
+			if (gcmm == null) {
+				gcmm = new GCMManager(API_KEY, host);
+			}
+		}
+	}
+	
+	public static void register(String token, String id) {
+		if (gcmm != null) {
+			if (id == null) {
+				gcmm.unregister(token);
+			}
+			else {
+				gcmm.register(token, id);
+			}
+		}
 	}
 	
 	public static void close() {
@@ -320,10 +506,7 @@ public class Agent implements ITAhMAgent {
 	@Override
 	public void set(String key, Object value) {
 		switch(key) {
-		case "log":
-			log.sysLog((String)value);
-			
-			break;
+		default:
 		}
 	}
 

@@ -3,34 +3,39 @@ package com.itahm.util;
 import java.io.File;
 import java.util.Calendar;
 
-abstract public class DataCleaner {
+abstract public class DataCleaner implements Runnable{
 
 	private final long minDateMills;
-	private long count;
+	private File dataRoot;
+	private int depth;
+	private Thread thread;
 	
 	public DataCleaner(File dataRoot, long minDateMills) {
 		this(dataRoot, minDateMills, 0);
 	}
 	
 	public DataCleaner(File dataRoot, long minDateMills, int depth) {
+		this.dataRoot = dataRoot;
 		this.minDateMills = minDateMills;
+		this.depth = depth;
 		
-		count = 0;
+		thread = new Thread(this);
 		
-		if (dataRoot.isDirectory()) {
-			emptyLastData(dataRoot, depth);
-		}
-		
-		onComplete(this.count);
+		thread.start();
 	}
 
-	private void emptyLastData(File directory, int depth) {
+	private long emptyLastData(File directory, int depth) {
 		File [] files = directory.listFiles();
+		long count = 0;
 		
 		for (File file: files) {
+			if (this.thread.isInterrupted()) {
+				break;
+			}
+			
 			if (file.isDirectory()) {
 				if (depth > 0) {
-					emptyLastData(file, depth -1);
+					count += emptyLastData(file, depth -1);
 				}
 				else {
 					try {
@@ -47,6 +52,8 @@ abstract public class DataCleaner {
 				}
 			}
 		}
+		
+		return count;
 	}
 	
 	public static boolean deleteDirectory(File directory) {
@@ -69,6 +76,20 @@ abstract public class DataCleaner {
 	
 	abstract public void onDelete(File file);
 	abstract public void onComplete(long count);
+	
+	public void run() {
+		long count = -1;
+		
+		if (this.dataRoot.isDirectory()) {
+			count = emptyLastData(this.dataRoot, this.depth);
+		}
+		
+		onComplete(count);
+	}
+	
+	public void cancel() {
+		this.thread.interrupt();
+	}
 	
 	public static void main(String[] args) {
 		Calendar date = Calendar.getInstance();

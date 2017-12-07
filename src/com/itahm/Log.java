@@ -74,17 +74,7 @@ public class Log {
 		}
 		
 		if(broadcast) {
-			broadcast(message);
-		}
-	}
-	
-	public void broadcast(String message) {
-		if (Agent.gcmm != null) {
-			Agent.gcmm.broadcast(message);
-		}
-	
-		if (Agent.config.has("sms") && Agent.config.getBoolean("sms")) {
-			Agent.enterprise.sendEvent(message);
+			Agent.sendEvent(message);
 		}
 	}
 	

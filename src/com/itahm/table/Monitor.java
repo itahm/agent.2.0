@@ -14,12 +14,12 @@ public class Monitor extends Table {
 	
 	private void remove(JSONObject monitor, String ip) throws IOException {
 		if ("snmp".equals(monitor.getString("protocol"))) {
-			if (Agent.snmp.removeNode(ip)) {
+			if (Agent.removeSNMPNode(ip)) {
 				Agent.getTable(Name.CRITICAL).put(ip, null);
 			}
 		}
 		else if ("icmp".equals(monitor.getString("protocol"))) {
-			Agent.icmp.removeNode(ip);
+			Agent.removeICMPNode(ip);
 		}
 		
 		super.put(ip, null);
@@ -34,10 +34,10 @@ public class Monitor extends Table {
 			super.put(ip, null);
 			
 			if ("snmp".equals(monitor.getString("protocol"))) {
-				Agent.snmp.testNode(ip);
+				Agent.testSNMPNode(ip, true);
 			}
 			else if ("icmp".equals(monitor.getString("protocol"))) {
-				Agent.icmp.testNode(ip);
+				Agent.testICMPNode(ip);
 			}
 		}
 		

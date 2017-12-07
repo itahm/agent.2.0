@@ -53,6 +53,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 	
 	private final static long REQUEST_INTERVAL = 10000;
 	private boolean isClosed = false;
+	private DataCleaner cleaner;
 	
 	public enum Resource {
 		RESPONSETIME("responseTime"),
@@ -194,7 +195,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 		JSONObject profile = profileTable.getJSONObject(profileName);
 		
 		if (profile == null) {
-			Agent.log(String.format("%s profile not found %s", ip, profileName));
+			Agent.syslog(String.format("%s profile not found %s", ip, profileName));
 			
 			return;
 		}
@@ -219,7 +220,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 			node.request();
 		}
 		catch (JSONException jsone) {
-			Agent.log(Util.EToString(jsone));
+			Agent.syslog(Util.EToString(jsone));
 		}
 	}
 	
@@ -237,7 +238,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 				}
 			}
 			catch (JSONException jsone) {
-				Agent.log(Util.EToString(jsone));
+				Agent.syslog(Util.EToString(jsone));
 			}
 		}
 	}
@@ -302,7 +303,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 			}
 		}
 		catch (JSONException jsone) {
-			Agent.log(Util.EToString(jsone));
+			Agent.syslog(Util.EToString(jsone));
 			
 			return false;
 		}
@@ -363,7 +364,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 	public void testNode(final String ip, boolean onFailure) {
 		if (this.nodeList.containsKey(ip)) {
 			if(onFailure) {
-				Agent.log.write(ip, "이미 등록된 노드 입니다.", "information", false, false);
+				Agent.log(ip, "이미 등록된 노드 입니다.", "information", false, false);
 			}
 			
 			return;
@@ -386,7 +387,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 					node.addProfile((String)name, profile.getInt("udp"), new OctetString(profile.getString("community")));
 				}
 			} catch (UnknownHostException | JSONException e) {
-				Agent.log(Util.EToString(e));
+				Agent.syslog(Util.EToString(e));
 			}
 		}
 		
@@ -416,7 +417,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 			try {
 				data = Util.getJSONFromFile(f);
 			} catch (IOException e) {
-				Agent.log("SNMPAgent "+ e.getMessage());
+				Agent.syslog("SNMPAgent "+ e.getMessage());
 			}
 		}
 		
@@ -435,14 +436,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 		return this.topTable.getTop(count);		
 	}
 	
-	public void clean() {
-		int day = Agent.config.getInt("clean");
-		
-		if (day <= 0) {
-			return;
-		}
-		
-		
+	public void clean(int day) {
 		Calendar date = Calendar.getInstance();
 					
 		date.set(Calendar.HOUR_OF_DAY, 0);
@@ -452,7 +446,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 		
 		date.add(Calendar.DATE, -1* day);
 		
-		new DataCleaner(nodeRoot, date.getTimeInMillis(), 3) {
+		this.cleaner = new DataCleaner(nodeRoot, date.getTimeInMillis(), 3) {
 
 			@Override
 			public void onDelete(File file) {
@@ -461,7 +455,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 			@Override
 			public void onComplete(long count) {
 				if (count > 0) {
-					Agent.log(String.format("데이터 정리 %d 건 완료.", count));
+					Agent.syslog(String.format("데이터 정리 %d 건 완료.", count));
 				}
 			}
 		};
@@ -490,7 +484,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 			try {
 				Util.putJSONtoFile(new File(new File(this.nodeRoot, ip), "node"), node.getData());
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 			
 			sendNextRequest(node);
@@ -541,10 +535,10 @@ public class SNMPAgent extends Snmp implements Closeable {
 			try {
 				this.monitorTable.save();
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 			
-			Agent.log.write(ip,
+			Agent.log(ip,
 				(nodeData != null && nodeData.has("sysName"))? String.format("%s [%s] 정상.", ip, nodeData.getString("sysName")): String.format("%s 정상.", ip),
 				"shutdown", true, true);
 		}
@@ -574,10 +568,10 @@ public class SNMPAgent extends Snmp implements Closeable {
 			try {
 				this.monitorTable.save();
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 			
-			Agent.log.write(ip,
+			Agent.log(ip,
 				(nodeData != null && nodeData.has("sysName"))? String.format("%s [%s] 응답 없음.", ip, nodeData.getString("sysName")): String.format("%s 응답 없음.", ip),
 				"shutdown", false, true);
 		}
@@ -619,10 +613,10 @@ public class SNMPAgent extends Snmp implements Closeable {
 		try {
 			this.monitorTable.save();
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 		}
 		
-		Agent.log.write(ip,
+		Agent.log(ip,
 			nodeData.has("sysName")? String.format("%s [%s] %s", ip, nodeData.getString("sysName"), message): String.format("%s %s", ip, message),
 			"critical", !critical, true);
 		
@@ -656,7 +650,7 @@ public class SNMPAgent extends Snmp implements Closeable {
 		try {
 			node.request();
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 			
 			sendNextRequest(node);
 		}
@@ -733,18 +727,22 @@ public class SNMPAgent extends Snmp implements Closeable {
 		try {
 			super.close();
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 		}
 		
 		for (SNMPNode node: this.nodeList.values()) {
 			try {
 				node.close();
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 		}
 		
 		this.timer.cancel();
+		
+		if (this.cleaner != null) {
+			this.cleaner.cancel();
+		}
 		
 		System.out.format("SNMP manager stop.\n");
 	}

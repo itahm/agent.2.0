@@ -37,11 +37,11 @@ public class TestNode extends TmpNode {
 						.put("label", "")
 						.put("ifSpeed", new JSONObject()));
 			} catch (IOException ioe) {
-				Agent.log(Util.EToString(ioe));
+				Agent.syslog(Util.EToString(ioe));
 			}
 		}
 		
-		Agent.icmp.removeNode(super.ip);
+		Agent.removeICMPNode(super.ip);
 		
 		monitorTable.getJSONObject().put(super.ip, new JSONObject()
 			.put("protocol", "snmp")
@@ -53,17 +53,17 @@ public class TestNode extends TmpNode {
 		try {
 			monitorTable.save();
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 		}
 		
 		try {
 			this.agent.addNode(this.ip, profileName);
 			
-			Agent.log.write(ip, String.format("%s SNMP 등록 성공.", super.ip), "", true, false);
+			Agent.log(ip, String.format("%s SNMP 등록 성공.", super.ip), "", true, false);
 		} catch (IOException ioe) {
-			Agent.log(Util.EToString(ioe));
+			Agent.syslog(Util.EToString(ioe));
 			
-			Agent.log.write(ip, "시스템에 심각한 오류가 있습니다.", "information", false, false);
+			Agent.log(ip, "시스템에 심각한 오류가 있습니다.", "information", false, false);
 		}
 	}
 
@@ -73,6 +73,6 @@ public class TestNode extends TmpNode {
 			return;
 		}
 		
-		Agent.log.write(ip, String.format("%s SNMP 등록 실패. status[%d]", super.ip, status), "shutdown", false, false);
+		Agent.log(ip, String.format("%s SNMP 등록 실패. status[%d]", super.ip, status), "shutdown", false, false);
 	}
 }

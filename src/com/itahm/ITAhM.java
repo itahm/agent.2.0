@@ -6,9 +6,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Enumeration;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Pattern;
@@ -24,7 +28,7 @@ public class ITAhM extends Listener implements Closeable {
 	
 	private final static long DAY1 = 24 *60 *60 *1000;
 	private final static String DATA = "data";
-	public static long expire = 0;
+	public static long expire = 0L;
 	private final Timer timer = new Timer();
 	
 	enum Options {
@@ -87,13 +91,35 @@ public class ITAhM extends Listener implements Closeable {
 		agent.set("log", e.getMessage());
 	}
 	
+	public static boolean hasMAC(byte [] mac) throws SocketException {
+		Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+		NetworkInterface ni;
+		byte [] ba;
+		
+		while(e.hasMoreElements()) {
+			ni = e.nextElement();
+			
+			if (ni.isUp() && !ni.isLoopback() && !ni.isVirtual()) {
+				 ba = ni.getHardwareAddress();
+				 
+				 if(ba!= null) {
+					 if (Arrays.equals(mac, ba)) {
+						 return true; 
+					 }
+				 }
+			}
+		}
+		
+		return false;
+	}
+	
 	public static void sendResponse(Request request, Response response) throws IOException {
 		String origin = request.getRequestHeader(Request.Header.ORIGIN);
 		
 		if (Agent.isDemo || origin == null) {
 			origin = "http://itahm.com";
 		}
-	
+		
 		response.setResponseHeader("Access-Control-Allow-Origin", origin);
 		response.setResponseHeader("Access-Control-Allow-Credentials", "true");
 		
@@ -195,7 +221,13 @@ public class ITAhM extends Listener implements Closeable {
 		}
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws SocketException {
+		/*if (!hasMAC(new byte [] {})) {
+			System.out.println("Check your License.");
+			
+			return;
+		}
+		*/
 		int tcp = 2014;
 		File path = null;
 		boolean clean = true;

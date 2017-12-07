@@ -24,7 +24,7 @@ public class Profile extends Table {
 	
 	private void removeProfile(JSONObject profile) {
 		if ("v3".equals(profile.getString("version"))) {
-			Agent.snmp.removeUSM(profile.getString("user"));
+			Agent.removeUSM(profile.getString("user"));
 		}
 	}
 	
@@ -33,7 +33,7 @@ public class Profile extends Table {
 		
 		// 삭제
 		if (profile == null) {
-			if (super.table.has(name) && Agent.snmp.isIdleProfile(name)) {
+			if (super.table.has(name) && Agent.isIdleProfile(name)) {
 				removeProfile(super.table.getJSONObject(name));
 			}
 			else {
@@ -46,7 +46,7 @@ public class Profile extends Table {
 		}
 		// v3 추가
 		else if ("v3".equals(profile.getString("version"))) {
-			success = Agent.snmp.addUSM(profile);
+			success = Agent.addUSM(profile);
 			
 		}
 		// else v2c 추가
