@@ -26,8 +26,8 @@ public class SNMPNode extends Node {
 	
 	public enum Rolling {
 		HRPROCESSORLOAD("hrProcessorLoad"),
-		IFINBYTES("ifInBytes"),
-		IFOUTBYTES("ifOutBytes"),
+		//IFINBYTES("ifInBytes"),
+		//IFOUTBYTES("ifOutBytes"),
 		IFINOCTETS("ifInOctets"),
 		IFOUTOCTETS("ifOutOctets"),
 		IFINERRORS("ifInErrors"),
@@ -52,7 +52,7 @@ public class SNMPNode extends Node {
 	private SNMPAgent agent;
 	private Critical critical;
 	
-	public static SNMPNode getInstance(SNMPAgent agent, String ip, int udp, String user, int level, JSONObject criticalCondition) throws IOException {
+	public static SNMPNode	getInstance(SNMPAgent agent, String ip, int udp, String user, int level, JSONObject criticalCondition) throws IOException {
 		SNMPNode node = new SNMPNode(agent, ip, udp, user, level, criticalCondition);
 		
 		node.initialize(agent, ip, criticalCondition);
@@ -60,22 +60,22 @@ public class SNMPNode extends Node {
 		return node;
 	}
 	
-	public static SNMPNode getInstance(SNMPAgent agent, String ip, int udp, String community, JSONObject criticalCondition) throws IOException {
-		SNMPNode node = new SNMPNode(agent, ip, udp, community, criticalCondition);
+	public static SNMPNode getInstance(SNMPAgent agent, String ip, int udp, int version, String community, JSONObject criticalCondition) throws IOException {
+		SNMPNode node = new SNMPNode(agent, ip, udp, version, community, criticalCondition);
 		
 		node.initialize(agent, ip, criticalCondition);
 		
 		return node;
 	}
 	
-	private SNMPNode(SNMPAgent agent, String ip, int udp, String community, JSONObject criticalCondition) throws IOException {
-		super(agent, ip, udp, new OctetString(community), Agent.MAX_TIMEOUT);
+	private SNMPNode(SNMPAgent agent, String ip, int udp, int version, String community, JSONObject criticalCondition) throws IOException {
+		super(agent, ip, udp, version, new OctetString(community));
 		
 		agent.setRequestOID(super.pdu);
 	}
 	
 	private SNMPNode(SNMPAgent agent, String ip, int udp, String user, int level, JSONObject criticalCondition) throws IOException {
-		super(agent, ip, udp, new OctetString(user), level, Agent.MAX_TIMEOUT);
+		super(agent, ip, udp, new OctetString(user), level);
 		
 		agent.setRequestOID(super.pdu);
 	}
@@ -101,13 +101,11 @@ public class SNMPNode extends Node {
 	}
 	
 	private void putData(Rolling database, String index, long value) throws IOException {
-		Map<String, RollingFile> dbToFile = this.rollingMap.get(database);
-		RollingFile rollingFile = dbToFile.get(index);
+		Map<String, RollingFile> rollingMap = this.rollingMap.get(database);
+		RollingFile rollingFile = rollingMap.get(index);
 		
 		if (rollingFile == null) {
-			rollingFile = new RollingFile(new File(this.nodeRoot, database.toString()), index);
-						
-			dbToFile.put(index, rollingFile);
+			rollingMap.put(index, rollingFile = new RollingFile(new File(this.nodeRoot, database.toString()), index));
 		}
 		
 		rollingFile.roll(value, Agent.getRollingInterval());
@@ -147,7 +145,7 @@ public class SNMPNode extends Node {
 	}
 	
 	private void parseResponseTime() throws IOException {
-		putData(Rolling.RESPONSETIME, "0", super.responseTime);
+		this.putData(Rolling.RESPONSETIME, "0", super.responseTime);
 		
 		this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.RESPONSETIME, new TopTable.Value(responseTime, -1, "0"));
 	}
@@ -159,7 +157,7 @@ public class SNMPNode extends Node {
 		for(String index: super.hrProcessorEntry.keySet()) {
 			value = super.hrProcessorEntry.get(index);
 			
-			putData(Rolling.HRPROCESSORLOAD, index, value);
+			this.putData(Rolling.HRPROCESSORLOAD, index, value);
 			
 			if (this.critical != null) {
 				this.critical.analyze(Critical.Resource.PROCESSOR, index, 100, value);
@@ -173,14 +171,6 @@ public class SNMPNode extends Node {
 		if (max != null) {
 			this.agent.onSubmitTop(this.ip, SNMPAgent.Resource.PROCESSOR, max);
 		}
-	}
-	
-	public JSONObject test() {
-		return new JSONObject()
-			.put("sysObjectID", super.data.has("sysObjectID")? super.data.getString("sysObjectID"): "")
-			.put("hrProcessorEntry", super.hrProcessorEntry.size())
-			.put("hrStorageEntry", super.hrStorageEntry.size())
-			.put("ifEntry", super.ifEntry.size());
 	}
 	
 	private void parseStorage() throws IOException {
@@ -210,7 +200,7 @@ public class SNMPNode extends Node {
 				continue;
 			}
 			
-			putData(Rolling.HRSTORAGEUSED, index, value);
+			this.putData(Rolling.HRSTORAGEUSED, index, value);
 			
 			switch(type) {
 			case 2:
@@ -248,7 +238,7 @@ public class SNMPNode extends Node {
 		}
 	}
 	
-	private void parseInterface(JSONObject ifEntry) throws IOException {
+	private void parseInterface() throws IOException {
 		JSONObject device = Agent.getTable(Table.Name.DEVICE).getJSONObject(this.ip);
 		
 		if (device == null) {
@@ -256,8 +246,15 @@ public class SNMPNode extends Node {
 		}
 		
 		JSONObject
+			lastEntry = super.data.has("ifEntry")? super.data.getJSONObject("ifEntry"): null;
+		
+		if (lastEntry == null) {
+			return;
+		}
+		
+		JSONObject
 			ifSpeed = device.has("ifSpeed")? device.getJSONObject("ifSpeed"): null,
-			data, oldData;
+			data, lastData;
 		long value,
 			rate,
 			capacity,
@@ -269,21 +266,20 @@ public class SNMPNode extends Node {
 		
 		for(String index: super.ifEntry.keySet()) {
 			// 특정 index가 새로 생성되었다면 보관된 값이 없을수도 있음.
-			if (!ifEntry.has(index)) {
+			if (!lastEntry.has(index)) {
 				continue;
 			}
 			
 			data = super.ifEntry.get(index);
 			capacity = 0;
 			
-			oldData = ifEntry.getJSONObject(index);
+			lastData = lastEntry.getJSONObject(index);
 			
-			if (!oldData.has("timestamp")
-				|| !data.has("ifAdminStatus")
-				|| data.getInt("ifAdminStatus") != 1) {
+			if (!data.has("ifAdminStatus") || data.getInt("ifAdminStatus") != 1) {
 				continue;
 			}
 			
+			//custom speed가 있는 경우
 			if (ifSpeed !=null && ifSpeed.has(index)) {
 				capacity = ifSpeed.getLong(index);
 			}
@@ -298,48 +294,44 @@ public class SNMPNode extends Node {
 				continue;
 			}
 			
-			if (data.has("ifInErrors")) {
-				value = data.getInt("ifInErrors");
+			if (data.has("ifInErrors") && lastData.has("ifInErrors")) {
+				value = data.getInt("ifInErrors") - lastData.getInt("ifInErrors");
 				
-				if (oldData.has("ifInErrors")) {
-					value -= oldData.getInt("ifInErrors");
-					
-					data.put("ifInErrors", value);
+				data.put("ifInErrors", value);
 				
-					putData(Rolling.IFINERRORS, index, value);
-					
-					if (maxErr == null || maxErr.getValue() < value) {
-						maxErr = new TopTable.Value(value, -1, index);
-					}
+				this.putData(Rolling.IFINERRORS, index, value);
+				
+				if (maxErr == null || maxErr.getValue() < value) {
+					maxErr = new TopTable.Value(value, -1, index);
 				}
 			}
 			
-			if (data.has("ifOutErrors")) {
-				value = data.getInt("ifOutErrors");
+			if (data.has("ifOutErrors") && lastData.has("ifOutErrors")) {
+				value = data.getInt("ifOutErrors") - lastData.getInt("ifOutErrors");
 				
-				if (oldData.has("ifOutErrors")) {
-					value -= oldData.getInt("ifOutErrors");
-					
-					data.put("ifOutErrors", value);
-					
-					putData(Rolling.IFOUTERRORS, index, value);
-					
-					if (maxErr == null || maxErr.getValue() < value) {
-						maxErr = new TopTable.Value(value, -1, index);
-					}
+				data.put("ifOutErrors", value);
+				
+				this.putData(Rolling.IFOUTERRORS, index, value);
+				
+				if (maxErr == null || maxErr.getValue() < value) {
+					maxErr = new TopTable.Value(value, -1, index);
 				}
 			}
 			
-			duration = data.getLong("timestamp") - oldData.getLong("timestamp");
+			if (!data.has("timestamp") || !lastData.has("timestamp")) {
+				continue;
+			}
+				
+			duration = data.getLong("timestamp") - lastData.getLong("timestamp");
 			
 			value = -1;
 			
-			if (data.has("ifHCInOctets") && oldData.has("ifHCInOctets")) {
-				value = data.getLong("ifHCInOctets") - oldData.getLong("ifHCInOctets");
+			if (data.has("ifHCInOctets") && lastData.has("ifHCInOctets")) {
+				value = data.getLong("ifHCInOctets") - lastData.getLong("ifHCInOctets");
 			}
 			
-			if (data.has("ifInOctets") && oldData.has("ifInOctets")) {
-				value = Math.max(value, data.getLong("ifInOctets") - oldData.getLong("ifInOctets"));
+			if (data.has("ifInOctets") && lastData.has("ifInOctets")) {
+				value = Math.max(value, data.getLong("ifInOctets") - lastData.getLong("ifInOctets"));
 			}
 			
 			if (value  >= 0) {
@@ -347,7 +339,7 @@ public class SNMPNode extends Node {
 				
 				data.put("ifInBPS", value);
 				
-				putData(Rolling.IFINOCTETS, index, value);
+				this.putData(Rolling.IFINOCTETS, index, value);
 				
 				rate = value*100L / capacity;
 				
@@ -366,12 +358,12 @@ public class SNMPNode extends Node {
 			
 			value = -1;
 			
-			if (data.has("ifHCOutOctets") && oldData.has("ifHCOutOctets")) {
-				value = data.getLong("ifHCOutOctets") - oldData.getLong("ifHCOutOctets");
+			if (data.has("ifHCOutOctets") && lastData.has("ifHCOutOctets")) {
+				value = data.getLong("ifHCOutOctets") - lastData.getLong("ifHCOutOctets");
 			}
 			
-			if (data.has("ifOutOctets") && oldData.has("ifOutOctets")) {
-				value = Math.max(value, data.getLong("ifOutOctets") - oldData.getLong("ifOutOctets"));
+			if (data.has("ifOutOctets") && lastData.has("ifOutOctets")) {
+				value = Math.max(value, data.getLong("ifOutOctets") - lastData.getLong("ifOutOctets"));
 			}
 			
 			if (value >= 0) {
@@ -379,7 +371,7 @@ public class SNMPNode extends Node {
 				
 				data.put("ifOutBPS", value);
 				
-				putData(Rolling.IFOUTOCTETS, index, value);
+				this.putData(Rolling.IFOUTOCTETS, index, value);
 				
 				rate = value*100L / capacity;
 				
@@ -424,7 +416,15 @@ public class SNMPNode extends Node {
 			}
 		}
 	}
-
+	
+	public JSONObject test() {
+		return new JSONObject()
+			.put("sysObjectID", super.data.has("sysObjectID")? super.data.getString("sysObjectID"): "")
+			.put("hrProcessorEntry", super.hrProcessorEntry.size())
+			.put("hrStorageEntry", super.hrStorageEntry.size())
+			.put("ifEntry", super.ifEntry.size());
+	}
+	
 	public long getLoad() {
 		Map<String, RollingFile> map;
 		long sum = 0;
@@ -462,9 +462,7 @@ public class SNMPNode extends Node {
 				
 				parseStorage();
 				
-				if (super.data.has("ifEntry")) {
-					parseInterface(super.data.getJSONObject("ifEntry"));
-				}
+				parseInterface();
 			} catch (IOException ioe) {
 				Agent.syslog(Util.EToString(ioe));
 			}

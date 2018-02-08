@@ -16,20 +16,19 @@ import org.snmp4j.UserTarget;
 import org.snmp4j.event.ResponseEvent;
 import org.snmp4j.event.ResponseListener;
 import org.snmp4j.mp.SnmpConstants;
+import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.UdpAddress;
+import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 
 abstract public class TmpNode implements ResponseListener {
 
-
-	
-	//protected final SNMPAgent agent;
 	protected final Snmp agent;
 	private long timeout;
 	private final LinkedList<Target> list;
 	private final Map<Target, String> profileMap;
-	
+	private int status = -1;
 	protected final String ip;
 	
 	abstract public void onSuccess(String profileName);
@@ -45,11 +44,11 @@ abstract public class TmpNode implements ResponseListener {
 		profileMap = new HashMap<>();
 	}
 	
-	public TmpNode addProfile(String name, int udp, OctetString community) throws UnknownHostException{
+	public TmpNode addProfile(String name, int udp, OctetString community, int version) throws UnknownHostException{
 		CommunityTarget target;
-			
+		
 		target = new CommunityTarget(new UdpAddress(InetAddress.getByName(this.ip), udp), community);
-		target.setVersion(SnmpConstants.version2c);
+		target.setVersion(version);
 		target.setTimeout(this.timeout);
 		
 		this.list.add(target);
@@ -78,7 +77,7 @@ abstract public class TmpNode implements ResponseListener {
 		PDU pdu;
 		
 		if (target == null) {
-			onFailure(-1);
+			onFailure(status);
 		}
 		else {
 			if (target instanceof UserTarget) {
@@ -88,7 +87,9 @@ abstract public class TmpNode implements ResponseListener {
 				pdu = new PDU();
 			}
 			
-			pdu.setType(PDU.GET);
+			pdu.setType(PDU.GETNEXT);
+			
+			pdu.add(new VariableBinding(new OID(new int [] {1,3,6,1,2,1})));
 			
 			try {
 				this.agent.send(pdu, target, null, this);
@@ -108,16 +109,13 @@ abstract public class TmpNode implements ResponseListener {
 			PDU response = event.getResponse();
 			
 			if (response != null) {
-				int status = response.getErrorStatus();
+				this.status = response.getErrorStatus();
 			
-				if (status == PDU.noError) {
+				if (this.status == PDU.noError) {
 					onSuccess(this.profileMap.get(target));
+					
+					return;
 				}
-				else {
-					onFailure(status);
-				}
-				
-				return;
 			}
 		}
 		
@@ -141,7 +139,7 @@ abstract public class TmpNode implements ResponseListener {
 				System.out.println("falure");
 			}};
 			
-		node.addProfile("test", Integer.parseInt(args[2]), new OctetString(args[1]));
+		node.addProfile("test", Integer.parseInt(args[2]), new OctetString(args[1]), SnmpConstants.version2c);
 		
 		node.test();
 		

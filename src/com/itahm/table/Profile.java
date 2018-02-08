@@ -49,7 +49,7 @@ public class Profile extends Table {
 			success = Agent.addUSM(profile);
 			
 		}
-		// else v2c 추가
+		// else v1, v2c 추가
 		
 		return success? super.put(name, profile): super.table;
 	}

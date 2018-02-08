@@ -41,7 +41,7 @@ public abstract class Node implements Runnable, Closeable {
 	private final static int MAX_REQUEST = 100;
 	private final static int CISCO = 9;
 	private final static int DASAN = 6296;
-	
+	private final static int TIMEOUT_DEF = 10000;
 	private final static int [] TIMEOUTS = new int [] {2000, 3000, 5000};
 	private final static int TIMEOUT_COUNT = TIMEOUTS.length;
 	
@@ -71,7 +71,7 @@ public abstract class Node implements Runnable, Closeable {
 	protected final Map<String, JSONObject> ifEntry = new HashMap<>();
 	protected final Map<String, String> hrSWRunName = new HashMap<>();
 	
-	public Node(Snmp snmp, String ip, int timeout) throws IOException {
+	public Node(Snmp snmp, String ip) throws IOException {
 		this.snmp = snmp;
 		this.ip = InetAddress.getByName(ip);
 		
@@ -144,8 +144,8 @@ public abstract class Node implements Runnable, Closeable {
 		}
 	}
 	
-	public Node(Snmp snmp, String ip, int udp, OctetString user, int level, int timeout) throws IOException {
-		this(snmp, ip, timeout);
+	public Node(Snmp snmp, String ip, int udp, OctetString user, int level) throws IOException {
+		this(snmp, ip);
 		
 		pdu = new ScopedPDU();
 		pdu.setType(PDU.GETNEXT);
@@ -155,15 +155,16 @@ public abstract class Node implements Runnable, Closeable {
 		
 		// target 설정
 		target = new UserTarget();
+		
 		target.setAddress(new UdpAddress(InetAddress.getByName(ip), udp));
 		target.setVersion(SnmpConstants.version3);
 		target.setSecurityLevel(level);
 		target.setSecurityName(user);
-		target.setTimeout(timeout);
+		target.setTimeout(TIMEOUT_DEF);
 	}
 	
-	public Node(Snmp snmp, String ip, int udp, OctetString community, int timeout) throws IOException {
-		this(snmp, ip, timeout);
+	public Node(Snmp snmp, String ip, int udp, int version, OctetString community) throws IOException {
+		this(snmp, ip);
 		
 		pdu = new PDU();
 		pdu.setType(PDU.GETNEXT);
@@ -171,18 +172,14 @@ public abstract class Node implements Runnable, Closeable {
 		nextPDU = new PDU();
 		nextPDU.setType(PDU.GETNEXT);
 		
+		target = new CommunityTarget(new UdpAddress(InetAddress.getByName(ip), udp), community);
 		
-		
-		// target 설정
-		try {
-			target = new CommunityTarget(new UdpAddress(InetAddress.getByName(ip), udp), community);
-		}
-		catch (IOException ioe) {
-			throw ioe;
-		}
-		
-		target.setVersion(SnmpConstants.version2c);
-		target.setTimeout(timeout);
+		target.setVersion(version);
+		target.setTimeout(TIMEOUT_DEF);
+	}
+	
+	public void setTimeout(long timeout) {
+		this.target.setTimeout(timeout);
 	}
 	
 	private void setEnterprise(int enterprise) {
@@ -198,6 +195,7 @@ public abstract class Node implements Runnable, Closeable {
 			this.pdu.add(new VariableBinding(RequestOID.dsCpuLoad5s));
 			this.pdu.add(new VariableBinding(RequestOID.dsTotalMem));
 			this.pdu.add(new VariableBinding(RequestOID.dsUsedMem));
+			
 			break;
 		}
 	}
@@ -257,9 +255,7 @@ public abstract class Node implements Runnable, Closeable {
 		JSONObject ifData = this.ifEntry.get(index);
 		
 		if(ifData == null) {
-			ifData = new JSONObject();
-					
-			this.ifEntry.put(index, ifData);
+			this.ifEntry.put(index, ifData = new JSONObject());
 			
 			ifData.put("ifInBPS", 0);
 			ifData.put("ifOutBPS", 0);
@@ -320,9 +316,7 @@ public abstract class Node implements Runnable, Closeable {
 		JSONObject ifData = this.ifEntry.get(index);
 		
 		if(ifData == null) {
-			ifData = new JSONObject();
-			
-			this.ifEntry.put(index, ifData);
+			this.ifEntry.put(index, ifData = new JSONObject());
 		}
 		
 		if (request.startsWith(RequestOID.ifName) && response.startsWith(RequestOID.ifName)) {
@@ -366,8 +360,6 @@ public abstract class Node implements Runnable, Closeable {
 			JSONObject storageData = this.hrStorageEntry.get(index);
 			
 			if (storageData == null) {
-				storageData = new JSONObject();
-				
 				this.hrStorageEntry.put(index, storageData = new JSONObject());
 			}
 			
@@ -491,7 +483,7 @@ public abstract class Node implements Runnable, Closeable {
 		return false;
 	}
 	
-	public final boolean getNextRequest(PDU request, PDU response) throws IOException {
+	private final boolean getNextRequest(PDU request, PDU response) throws IOException {
 		Vector<? extends VariableBinding> requestVBs = request.getVariableBindings();
 		Vector<? extends VariableBinding> responseVBs = response.getVariableBindings();
 		Vector<VariableBinding> nextRequests = new Vector<VariableBinding>();

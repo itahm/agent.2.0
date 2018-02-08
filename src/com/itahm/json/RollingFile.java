@@ -32,19 +32,11 @@ public class RollingFile {
 	private JSONObject hourData;
 	private long max;
 	private long min;
-	private BigInteger hourSum = BigInteger.valueOf(0);
-	private int hourCnt = 0;
-	private BigInteger minuteSum = BigInteger.valueOf(0);
-	private long minuteSumCnt = 0;
+	private BigInteger summarySum = BigInteger.valueOf(0);
+	private int summaryCount = 0;
+	private BigInteger valueSum = BigInteger.valueOf(0);
+	private long valueCount = 0;
 	
-	/**
-	 * Instantiates a new rolling file.
-	 *
-	 * @param root the root (itahm\snmp\ip\resource)
-	 * @param index the index of host, interfaces, etc.
-	 * @param type gauge or counter
-	 * @throws IOException Signals that an I/O exception has occurred.
-	 */
 	public RollingFile(File rscRoot, String index) throws IOException {
 		Calendar c = Calendar.getInstance();
 		
@@ -67,11 +59,13 @@ public class RollingFile {
 		
 		// summary file 생성
 		this.summaryFile = new File(this.dayDirectory, "summary");
+		
+		// 존재하면 load
 		if (this.summaryFile.isFile()) {
 			this.summaryData = Util.getJSONFromFile(this.summaryFile);
 		}
 		
-		// 최초 생성되거나, 파일이 깨졌을때
+		// 존재하지 않거나 파일에 문제가 있는 경우
 		if (this.summaryData == null) {
 			Util.putJSONtoFile(this.summaryFile, this.summaryData = new JSONObject());
 		}
@@ -85,26 +79,18 @@ public class RollingFile {
 		
 		// hourly file 생성
 		this.hourFile = new File(this.dayDirectory, this.summaryHour);
+		
+		// 존재하면 load
 		if (this.hourFile.isFile()) {
 			this.hourData = Util.getJSONFromFile(this.hourFile);
 		}
 		
-		// 최초 생성되거나, 파일이 깨졌을때
+		// 존재하지 않거나 파일에 문제가 있는 경우
 		if (this.hourData == null) {
 			Util.putJSONtoFile(this.hourFile, this.hourData = new JSONObject());
 		}
 	}
 	
-	public void roll(long value) throws IOException {
-		roll(value, 1);
-	}
-	
-	/**
-	 * Roll.
-	 *
-	 * @param value the value
-	 * @throws IOException Signals that an I/O exception has occurred.
-	 */
 	public void roll(long value, int interval) throws IOException {
 		Calendar c = Calendar.getInstance();
 		String minString;
@@ -121,6 +107,9 @@ public class RollingFile {
 		
 		if (this.lastHour != hourMills) {
 			// 시간마다 summary 파일과 시간파일 저장
+			
+			calcSummary();
+			
 			elapse = System.currentTimeMillis();
 			
 			Util.putJSONtoFile(this.summaryFile, this.summaryData);
@@ -148,45 +137,39 @@ public class RollingFile {
 			this.summaryHour = Long.toString(hourMills);
 			this.hourFile = new File(this.dayDirectory, this.summaryHour);
 			this.hourData = new JSONObject();
-			this.hourCnt = 0;
+			this.summaryCount = 0;
 			this.summaryData.put(this.summaryHour, this.summary = new JSONObject());
 		}
 		
-		roll(minString, value);
-	}
-	
-	private void roll(String minuteString, long value) throws IOException {
-		if (this.hourData.has(minuteString)) {
-			this.minuteSum = this.minuteSum.add(BigInteger.valueOf(value));
+		if (this.hourData.has(minString)) {
+			this.valueSum = this.valueSum.add(BigInteger.valueOf(value));
 		}
 		else {
-			this.minuteSum = BigInteger.valueOf(value);
-			this.minuteSumCnt = 0;
+			this.valueSum = BigInteger.valueOf(value);
+			this.valueCount = 0;
 		}
 		
-		this.minuteSumCnt++;
+		this.valueCount++;
 		
-		this.hourData.put(minuteString, this.minuteSum.divide(BigInteger.valueOf(this.minuteSumCnt)));
+		this.hourData.put(minString, this.valueSum.divide(BigInteger.valueOf(this.valueCount)));
 		
-		if (this.hourCnt == 0) {
-			this.hourSum = BigInteger.valueOf(value);
+		if (this.summaryCount == 0) {
+			this.summarySum = BigInteger.valueOf(value);
 			this.max = value;
 			this.min = value;
 		}
 		else {
-			this.hourSum = this.hourSum.add(BigInteger.valueOf(value));
+			this.summarySum = this.summarySum.add(BigInteger.valueOf(value));
 			this.max = Math.max(this.max, value);
 			this.min = Math.min(this.min, value);
 		}
 		
-		this.hourCnt++;
-		
-		summarize(this.hourSum.divide(BigInteger.valueOf(this.hourCnt)).longValue());
-	}
-	
-	private void summarize(long avg) throws IOException {
+		this.summaryCount++;
+
+		// summarize
+		long avg = this.summarySum.divide(BigInteger.valueOf(this.summaryCount)).longValue();
+
 		this.summary
-			.put("avg", avg)
 			.put("max", Math.max(avg, this.max))
 			.put("min", Math.min(avg, this.min));
 	}
@@ -199,6 +182,8 @@ public class RollingFile {
 			data = new JSONSummary(this.root).getJSON(start, end);
 
 			if (start < now && now < end) {
+				calcSummary();
+				
 				for (Object key : this.summaryData.keySet()) {
 					data.put((String)key, this.summaryData.getJSONObject((String)key));
 				}
@@ -215,6 +200,19 @@ public class RollingFile {
 		}
 			
 		return data;
+	}
+	
+	private void calcSummary() {
+		BigInteger sum = BigInteger.valueOf(0);
+		int count = 0;
+		
+		for (Object key : this.hourData.keySet()) {
+			sum.add(BigInteger.valueOf(this.hourData.getLong((String)key)));
+			
+			count++;
+		}
+		
+		this.summary.put("avg", sum.divide(BigInteger.valueOf(count)).longValue());
 	}
 	
 	public long getLoad() {

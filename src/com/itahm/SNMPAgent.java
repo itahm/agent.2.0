@@ -26,6 +26,7 @@ import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.PDU;
 import org.snmp4j.Snmp;
 import org.snmp4j.mp.MPv3;
+import org.snmp4j.mp.SnmpConstants;
 import org.snmp4j.security.AuthMD5;
 import org.snmp4j.security.AuthSHA;
 import org.snmp4j.security.PrivDES;
@@ -203,16 +204,30 @@ public class SNMPAgent extends Snmp implements Closeable {
 		SNMPNode node;
 		
 		try {
-			if ("v3".equals(profile.getString("version"))) {
+			switch(profile.getString("version")) {
+			case "v3":
 				node = SNMPNode.getInstance(this, ip, profile.getInt("udp")
-						, profile.getString("user")
-						, (profile.has("md5") || profile.has("sha"))? (profile.has("des")) ? SecurityLevel.AUTH_PRIV: SecurityLevel.AUTH_NOPRIV : SecurityLevel.NOAUTH_NOPRIV
-						, this.criticalTable.getJSONObject(ip));
-			}
-			else {
+					, profile.getString("user")
+					, (profile.has("md5") || profile.has("sha"))?
+						(profile.has("des")) ?
+							SecurityLevel.AUTH_PRIV: SecurityLevel.AUTH_NOPRIV : SecurityLevel.NOAUTH_NOPRIV
+					, this.criticalTable.getJSONObject(ip));
+				
+				break;
+			
+			case "v2c":
 				node = SNMPNode.getInstance(this, ip, profile.getInt("udp")
-						, profile.getString("community")
-						, this.criticalTable.getJSONObject(ip));
+					, SnmpConstants.version2c
+					, profile.getString("community")
+					, this.criticalTable.getJSONObject(ip));
+				
+				break;
+				
+			default:
+				node = 	SNMPNode.getInstance(this, ip, profile.getInt("udp")
+					, SnmpConstants.version1
+					, profile.getString("community")
+					, this.criticalTable.getJSONObject(ip));
 			}
 			
 			this.nodeList.put(ip, node);
@@ -379,12 +394,19 @@ public class SNMPAgent extends Snmp implements Closeable {
 			profile = profileData.getJSONObject((String)name);
 			
 			try {
-				if ("v3".equals(profile.getString("version"))) {
+				switch(profile.getString("version")) {
+				case "v3":
 					node.addV3Profile((String)name, profile.getInt("udp"), new OctetString(profile.getString("user"))
-						, (profile.has("md5") || profile.has("sha"))? (profile.has("des")) ? SecurityLevel.AUTH_PRIV: SecurityLevel.AUTH_NOPRIV : SecurityLevel.NOAUTH_NOPRIV);
-				}
-				else {
-					node.addProfile((String)name, profile.getInt("udp"), new OctetString(profile.getString("community")));
+							, (profile.has("md5") || profile.has("sha"))? (profile.has("des")) ? SecurityLevel.AUTH_PRIV: SecurityLevel.AUTH_NOPRIV : SecurityLevel.NOAUTH_NOPRIV);
+					break;
+				case "v2c":
+					node.addProfile((String)name, profile.getInt("udp"), new OctetString(profile.getString("community")), SnmpConstants.version2c);
+					
+					break;
+				case "v1":
+					node.addProfile((String)name, profile.getInt("udp"), new OctetString(profile.getString("community")), SnmpConstants.version1);
+					
+					break;
 				}
 			} catch (UnknownHostException | JSONException e) {
 				Agent.syslog(Util.EToString(e));
